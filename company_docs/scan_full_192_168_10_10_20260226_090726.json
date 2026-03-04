@@ -1,0 +1,101 @@
+{
+  "ip": "192.168.10.10",
+  "timestamp": "2026-02-26T09:06:13.922166",
+  "raw_output": "",
+  "vulnerabilities": [],
+  "open_ports": [],
+  "nmap_full_scan": "Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-26 09:06 +0500\nNmap scan report for 192.168.10.10\nHost is up (0.00012s latency).\nNot shown: 65520 closed tcp ports (reset)\nPORT     STATE SERVICE      VERSION\n53/tcp   open  domain       Simple DNS Plus\n88/tcp   open  kerberos-sec Microsoft Windows Kerberos (server time: 2026-02-26 04:06:37Z)\n135/tcp  open  msrpc        Microsoft Windows RPC\n139/tcp  open  netbios-ssn  Microsoft Windows netbios-ssn\n389/tcp  open  ldap         Microsoft Windows Active Directory LDAP (Domain: lab.local, Site: Default-First-Site-Name)\n445/tcp  open  microsoft-ds Microsoft Windows 2003 or 2008 microsoft-ds\n464/tcp  open  kpasswd5?\n593/tcp  open  ncacn_http   Microsoft Windows RPC over HTTP 1.0\n636/tcp  open  tcpwrapped\n1025/tcp open  msrpc        Microsoft Windows RPC\n1027/tcp open  ncacn_http   Microsoft Windows RPC over HTTP 1.0\n1037/tcp open  msrpc        Microsoft Windows RPC\n1044/tcp open  msrpc        Microsoft Windows RPC\n3268/tcp open  ldap         Microsoft Windows Active Directory LDAP (Domain: lab.local, Site: Default-First-Site-Name)\n3269/tcp open  tcpwrapped\nMAC Address: 00:0C:29:B4:49:32 (VMware)\nService Info: Host: URFU; OS: Windows; CPE: cpe:/o:microsoft:windows, cpe:/o:microsoft:windows_server_2003\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 72.08 seconds\n",
+  "open_ports_full": [
+    {
+      "port": "53",
+      "state": "open",
+      "service": "domain",
+      "version": "Simple DNS Plus"
+    },
+    {
+      "port": "88",
+      "state": "open",
+      "service": "kerberos-sec",
+      "version": "Microsoft Windows Kerberos (server time: 2026-02-26 04:06:37Z)"
+    },
+    {
+      "port": "135",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "139",
+      "state": "open",
+      "service": "netbios-ssn",
+      "version": "Microsoft Windows netbios-ssn"
+    },
+    {
+      "port": "389",
+      "state": "open",
+      "service": "ldap",
+      "version": "Microsoft Windows Active Directory LDAP (Domain: lab.local, Site: Default-First-Site-Name)"
+    },
+    {
+      "port": "445",
+      "state": "open",
+      "service": "microsoft-ds",
+      "version": "Microsoft Windows 2003 or 2008 microsoft-ds"
+    },
+    {
+      "port": "464",
+      "state": "open",
+      "service": "kpasswd5?",
+      "version": ""
+    },
+    {
+      "port": "593",
+      "state": "open",
+      "service": "ncacn_http",
+      "version": "Microsoft Windows RPC over HTTP 1.0"
+    },
+    {
+      "port": "636",
+      "state": "open",
+      "service": "tcpwrapped",
+      "version": ""
+    },
+    {
+      "port": "1025",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "1027",
+      "state": "open",
+      "service": "ncacn_http",
+      "version": "Microsoft Windows RPC over HTTP 1.0"
+    },
+    {
+      "port": "1037",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "1044",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "3268",
+      "state": "open",
+      "service": "ldap",
+      "version": "Microsoft Windows Active Directory LDAP (Domain: lab.local, Site: Default-First-Site-Name)"
+    },
+    {
+      "port": "3269",
+      "state": "open",
+      "service": "tcpwrapped",
+      "version": ""
+    }
+  ],
+  "scan_duration": 0.3134157657623291
+}

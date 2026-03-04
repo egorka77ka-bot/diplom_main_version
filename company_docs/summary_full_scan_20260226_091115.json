@@ -1,0 +1,263 @@
+{
+  "network": "192.168.10.0/24",
+  "scan_time": "2026-02-26T09:11:15.512523",
+  "total_hosts": 4,
+  "scanned_hosts": 4,
+  "duration_seconds": 72.4732494354248,
+  "duration_minutes": 1.2,
+  "results": {
+    "192.168.10.101": {
+      "ip": "192.168.10.101",
+      "timestamp": "2026-02-26T09:06:13.924282",
+      "raw_output": "",
+      "vulnerabilities": [],
+      "open_ports": [],
+      "nmap_full_scan": "Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-26 09:06 +0500\nNmap scan report for 192.168.10.101\nHost is up (0.00086s latency).\nAll 65535 scanned ports on 192.168.10.101 are in ignored states.\nNot shown: 65535 closed tcp ports (reset)\nMAC Address: 00:0C:29:8A:F6:E4 (VMware)\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 3.00 seconds\n",
+      "open_ports_full": [],
+      "scan_duration": 0.31428956985473633
+    },
+    "192.168.10.20": {
+      "ip": "192.168.10.20",
+      "timestamp": "2026-02-26T09:06:13.922471",
+      "raw_output": "",
+      "vulnerabilities": [],
+      "open_ports": [],
+      "nmap_full_scan": "Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-26 09:06 +0500\nNmap scan report for 192.168.10.20\nHost is up (0.00049s latency).\nNot shown: 65528 closed tcp ports (reset)\nPORT    STATE SERVICE  VERSION\n21/tcp  open  ftp      vsftpd 3.0.5\n22/tcp  open  ssh      OpenSSH 9.6p1 Ubuntu 3ubuntu13.14 (Ubuntu Linux; protocol 2.0)\n25/tcp  open  smtp     Postfix smtpd\n53/tcp  open  domain   ISC BIND 9.18.39-0ubuntu0.24.04.2 (Ubuntu Linux)\n80/tcp  open  http     Apache httpd 2.4.58 ((Ubuntu))\n143/tcp open  imap     Dovecot imapd (Ubuntu)\n993/tcp open  ssl/imap Dovecot imapd (Ubuntu)\nMAC Address: 00:0C:29:98:C2:FB (VMware)\nService Info: Host:  userver.localdomain; OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 9.17 seconds\n",
+      "open_ports_full": [
+        {
+          "port": "21",
+          "state": "open",
+          "service": "ftp",
+          "version": "vsftpd 3.0.5"
+        },
+        {
+          "port": "22",
+          "state": "open",
+          "service": "ssh",
+          "version": "OpenSSH 9.6p1 Ubuntu 3ubuntu13.14 (Ubuntu Linux; protocol 2.0)"
+        },
+        {
+          "port": "25",
+          "state": "open",
+          "service": "smtp",
+          "version": "Postfix smtpd"
+        },
+        {
+          "port": "53",
+          "state": "open",
+          "service": "domain",
+          "version": "ISC BIND 9.18.39-0ubuntu0.24.04.2 (Ubuntu Linux)"
+        },
+        {
+          "port": "80",
+          "state": "open",
+          "service": "http",
+          "version": "Apache httpd 2.4.58 ((Ubuntu))"
+        },
+        {
+          "port": "143",
+          "state": "open",
+          "service": "imap",
+          "version": "Dovecot imapd (Ubuntu)"
+        },
+        {
+          "port": "993",
+          "state": "open",
+          "service": "ssl/imap",
+          "version": "Dovecot imapd (Ubuntu)"
+        }
+      ],
+      "scan_duration": 0.3128354549407959
+    },
+    "192.168.10.1": {
+      "ip": "192.168.10.1",
+      "timestamp": "2026-02-26T09:06:13.922434",
+      "raw_output": "",
+      "vulnerabilities": [],
+      "open_ports": [],
+      "nmap_full_scan": "Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-26 09:06 +0500\nNmap scan report for 192.168.10.1\nHost is up (0.00012s latency).\nNot shown: 65521 closed tcp ports (reset)\nPORT      STATE    SERVICE         VERSION\n135/tcp   open     msrpc           Microsoft Windows RPC\n137/tcp   filtered netbios-ns\n139/tcp   open     netbios-ssn     Microsoft Windows netbios-ssn\n445/tcp   open     microsoft-ds?\n902/tcp   open     ssl/vmware-auth VMware Authentication Daemon 1.10 (Uses VNC, SOAP)\n912/tcp   open     vmware-auth     VMware Authentication Daemon 1.0 (Uses VNC, SOAP)\n5040/tcp  open     unknown\n7680/tcp  open     pando-pub?\n49664/tcp open     msrpc           Microsoft Windows RPC\n49665/tcp open     msrpc           Microsoft Windows RPC\n49666/tcp open     msrpc           Microsoft Windows RPC\n49667/tcp open     msrpc           Microsoft Windows RPC\n49668/tcp open     msrpc           Microsoft Windows RPC\n49674/tcp open     msrpc           Microsoft Windows RPC\nService Info: OS: Windows; CPE: cpe:/o:microsoft:windows\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 59.33 seconds\n",
+      "open_ports_full": [
+        {
+          "port": "135",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "139",
+          "state": "open",
+          "service": "netbios-ssn",
+          "version": "Microsoft Windows netbios-ssn"
+        },
+        {
+          "port": "445",
+          "state": "open",
+          "service": "microsoft-ds?",
+          "version": ""
+        },
+        {
+          "port": "902",
+          "state": "open",
+          "service": "ssl/vmware-auth",
+          "version": "VMware Authentication Daemon 1.10 (Uses VNC, SOAP)"
+        },
+        {
+          "port": "912",
+          "state": "open",
+          "service": "vmware-auth",
+          "version": "VMware Authentication Daemon 1.0 (Uses VNC, SOAP)"
+        },
+        {
+          "port": "5040",
+          "state": "open",
+          "service": "unknown",
+          "version": ""
+        },
+        {
+          "port": "7680",
+          "state": "open",
+          "service": "pando-pub?",
+          "version": ""
+        },
+        {
+          "port": "49664",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "49665",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "49666",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "49667",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "49668",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "49674",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        }
+      ],
+      "scan_duration": 0.31209444999694824
+    },
+    "192.168.10.10": {
+      "ip": "192.168.10.10",
+      "timestamp": "2026-02-26T09:06:13.922166",
+      "raw_output": "",
+      "vulnerabilities": [],
+      "open_ports": [],
+      "nmap_full_scan": "Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-26 09:06 +0500\nNmap scan report for 192.168.10.10\nHost is up (0.00012s latency).\nNot shown: 65520 closed tcp ports (reset)\nPORT     STATE SERVICE      VERSION\n53/tcp   open  domain       Simple DNS Plus\n88/tcp   open  kerberos-sec Microsoft Windows Kerberos (server time: 2026-02-26 04:06:37Z)\n135/tcp  open  msrpc        Microsoft Windows RPC\n139/tcp  open  netbios-ssn  Microsoft Windows netbios-ssn\n389/tcp  open  ldap         Microsoft Windows Active Directory LDAP (Domain: lab.local, Site: Default-First-Site-Name)\n445/tcp  open  microsoft-ds Microsoft Windows 2003 or 2008 microsoft-ds\n464/tcp  open  kpasswd5?\n593/tcp  open  ncacn_http   Microsoft Windows RPC over HTTP 1.0\n636/tcp  open  tcpwrapped\n1025/tcp open  msrpc        Microsoft Windows RPC\n1027/tcp open  ncacn_http   Microsoft Windows RPC over HTTP 1.0\n1037/tcp open  msrpc        Microsoft Windows RPC\n1044/tcp open  msrpc        Microsoft Windows RPC\n3268/tcp open  ldap         Microsoft Windows Active Directory LDAP (Domain: lab.local, Site: Default-First-Site-Name)\n3269/tcp open  tcpwrapped\nMAC Address: 00:0C:29:B4:49:32 (VMware)\nService Info: Host: URFU; OS: Windows; CPE: cpe:/o:microsoft:windows, cpe:/o:microsoft:windows_server_2003\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 72.08 seconds\n",
+      "open_ports_full": [
+        {
+          "port": "53",
+          "state": "open",
+          "service": "domain",
+          "version": "Simple DNS Plus"
+        },
+        {
+          "port": "88",
+          "state": "open",
+          "service": "kerberos-sec",
+          "version": "Microsoft Windows Kerberos (server time: 2026-02-26 04:06:37Z)"
+        },
+        {
+          "port": "135",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "139",
+          "state": "open",
+          "service": "netbios-ssn",
+          "version": "Microsoft Windows netbios-ssn"
+        },
+        {
+          "port": "389",
+          "state": "open",
+          "service": "ldap",
+          "version": "Microsoft Windows Active Directory LDAP (Domain: lab.local, Site: Default-First-Site-Name)"
+        },
+        {
+          "port": "445",
+          "state": "open",
+          "service": "microsoft-ds",
+          "version": "Microsoft Windows 2003 or 2008 microsoft-ds"
+        },
+        {
+          "port": "464",
+          "state": "open",
+          "service": "kpasswd5?",
+          "version": ""
+        },
+        {
+          "port": "593",
+          "state": "open",
+          "service": "ncacn_http",
+          "version": "Microsoft Windows RPC over HTTP 1.0"
+        },
+        {
+          "port": "636",
+          "state": "open",
+          "service": "tcpwrapped",
+          "version": ""
+        },
+        {
+          "port": "1025",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "1027",
+          "state": "open",
+          "service": "ncacn_http",
+          "version": "Microsoft Windows RPC over HTTP 1.0"
+        },
+        {
+          "port": "1037",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "1044",
+          "state": "open",
+          "service": "msrpc",
+          "version": "Microsoft Windows RPC"
+        },
+        {
+          "port": "3268",
+          "state": "open",
+          "service": "ldap",
+          "version": "Microsoft Windows Active Directory LDAP (Domain: lab.local, Site: Default-First-Site-Name)"
+        },
+        {
+          "port": "3269",
+          "state": "open",
+          "service": "tcpwrapped",
+          "version": ""
+        }
+      ],
+      "scan_duration": 0.3134157657623291
+    }
+  }
+}

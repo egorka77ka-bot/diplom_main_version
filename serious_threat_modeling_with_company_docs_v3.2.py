@@ -794,8 +794,8 @@ def main():
     print("МОДЕЛь УГРОЗ ")
     
     # Пути хранения файлов
-    docs_path = ".\data"
-    scans_path = ".\data"
+    docs_path = "./company_docs"
+    scans_path = "./RAG/data"
     
     # Загрузка документов
     doc_reader = CompanyDocumentReader(docs_path)

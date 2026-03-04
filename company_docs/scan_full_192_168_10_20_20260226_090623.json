@@ -1,0 +1,53 @@
+{
+  "ip": "192.168.10.20",
+  "timestamp": "2026-02-26T09:06:13.922471",
+  "raw_output": "",
+  "vulnerabilities": [],
+  "open_ports": [],
+  "nmap_full_scan": "Starting Nmap 7.98 ( https://nmap.org ) at 2026-02-26 09:06 +0500\nNmap scan report for 192.168.10.20\nHost is up (0.00049s latency).\nNot shown: 65528 closed tcp ports (reset)\nPORT    STATE SERVICE  VERSION\n21/tcp  open  ftp      vsftpd 3.0.5\n22/tcp  open  ssh      OpenSSH 9.6p1 Ubuntu 3ubuntu13.14 (Ubuntu Linux; protocol 2.0)\n25/tcp  open  smtp     Postfix smtpd\n53/tcp  open  domain   ISC BIND 9.18.39-0ubuntu0.24.04.2 (Ubuntu Linux)\n80/tcp  open  http     Apache httpd 2.4.58 ((Ubuntu))\n143/tcp open  imap     Dovecot imapd (Ubuntu)\n993/tcp open  ssl/imap Dovecot imapd (Ubuntu)\nMAC Address: 00:0C:29:98:C2:FB (VMware)\nService Info: Host:  userver.localdomain; OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 9.17 seconds\n",
+  "open_ports_full": [
+    {
+      "port": "21",
+      "state": "open",
+      "service": "ftp",
+      "version": "vsftpd 3.0.5"
+    },
+    {
+      "port": "22",
+      "state": "open",
+      "service": "ssh",
+      "version": "OpenSSH 9.6p1 Ubuntu 3ubuntu13.14 (Ubuntu Linux; protocol 2.0)"
+    },
+    {
+      "port": "25",
+      "state": "open",
+      "service": "smtp",
+      "version": "Postfix smtpd"
+    },
+    {
+      "port": "53",
+      "state": "open",
+      "service": "domain",
+      "version": "ISC BIND 9.18.39-0ubuntu0.24.04.2 (Ubuntu Linux)"
+    },
+    {
+      "port": "80",
+      "state": "open",
+      "service": "http",
+      "version": "Apache httpd 2.4.58 ((Ubuntu))"
+    },
+    {
+      "port": "143",
+      "state": "open",
+      "service": "imap",
+      "version": "Dovecot imapd (Ubuntu)"
+    },
+    {
+      "port": "993",
+      "state": "open",
+      "service": "ssl/imap",
+      "version": "Dovecot imapd (Ubuntu)"
+    }
+  ],
+  "scan_duration": 0.3128354549407959
+}

@@ -8,7 +8,7 @@ import PyPDF2
 import docx2txt
 
 # Конфигурация для RAG Саши
-BASE_PATH = "C:\\Working\\diplom\\rag_sasha"
+BASE_PATH = "."
 DOCS_PATH = os.path.join(BASE_PATH, "data")
 INDEX_PATH = os.path.join(BASE_PATH, "index", "faiss_index.bin")
 CHUNKS_PATH = os.path.join(BASE_PATH, "index", "chunks.json")

@@ -1,0 +1,89 @@
+{
+  "ip": "192.168.10.1",
+  "timestamp": "2026-03-04T13:29:55.335238",
+  "raw_output": "",
+  "vulnerabilities": [],
+  "open_ports": [],
+  "nmap_full_scan": "Starting Nmap 7.98 ( https://nmap.org ) at 2026-03-04 13:29 +0500\nNmap scan report for 192.168.10.1\nHost is up (0.00063s latency).\nNot shown: 65521 closed tcp ports (reset)\nPORT      STATE    SERVICE         VERSION\n135/tcp   open     msrpc           Microsoft Windows RPC\n137/tcp   filtered netbios-ns\n139/tcp   open     netbios-ssn     Microsoft Windows netbios-ssn\n445/tcp   open     microsoft-ds?\n902/tcp   open     ssl/vmware-auth VMware Authentication Daemon 1.10 (Uses VNC, SOAP)\n912/tcp   open     vmware-auth     VMware Authentication Daemon 1.0 (Uses VNC, SOAP)\n5040/tcp  open     unknown\n7680/tcp  open     pando-pub?\n49664/tcp open     msrpc           Microsoft Windows RPC\n49665/tcp open     msrpc           Microsoft Windows RPC\n49666/tcp open     msrpc           Microsoft Windows RPC\n49667/tcp open     msrpc           Microsoft Windows RPC\n49668/tcp open     msrpc           Microsoft Windows RPC\n49670/tcp open     msrpc           Microsoft Windows RPC\nService Info: OS: Windows; CPE: cpe:/o:microsoft:windows\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 62.34 seconds\n",
+  "open_ports_full": [
+    {
+      "port": "135",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "139",
+      "state": "open",
+      "service": "netbios-ssn",
+      "version": "Microsoft Windows netbios-ssn"
+    },
+    {
+      "port": "445",
+      "state": "open",
+      "service": "microsoft-ds?",
+      "version": ""
+    },
+    {
+      "port": "902",
+      "state": "open",
+      "service": "ssl/vmware-auth",
+      "version": "VMware Authentication Daemon 1.10 (Uses VNC, SOAP)"
+    },
+    {
+      "port": "912",
+      "state": "open",
+      "service": "vmware-auth",
+      "version": "VMware Authentication Daemon 1.0 (Uses VNC, SOAP)"
+    },
+    {
+      "port": "5040",
+      "state": "open",
+      "service": "unknown",
+      "version": ""
+    },
+    {
+      "port": "7680",
+      "state": "open",
+      "service": "pando-pub?",
+      "version": ""
+    },
+    {
+      "port": "49664",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "49665",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "49666",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "49667",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "49668",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    },
+    {
+      "port": "49670",
+      "state": "open",
+      "service": "msrpc",
+      "version": "Microsoft Windows RPC"
+    }
+  ],
+  "scan_duration": 0.9441366195678711
+}
