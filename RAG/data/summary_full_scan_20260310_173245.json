@@ -1,9 +1,0 @@
-{
-  "network": "192.168.10.0/24",
-  "scan_time": "2026-03-10T17:32:45.053236",
-  "total_hosts": 493,
-  "scanned_hosts": 0,
-  "duration_seconds": 0.2789883613586426,
-  "duration_minutes": 0.0,
-  "results": {}
-}
