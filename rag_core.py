@@ -15,8 +15,6 @@ TOP_K = 5
 MAX_CHUNKS = 3000  # Все чанки
 
 class RAGCore:
-    """RAG - загружается один раз и продолжаетработу до отмены"""
-    
     def __init__(self):
         print("Загрузка RAGа...")
         
@@ -36,10 +34,10 @@ class RAGCore:
         self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
         
         print(f"RAG готов")
-        #print(f"   Источников: {len(set(self.sources))}")
+        # print(f"   Прочитано документов: {len(set(self.sources))}")
     
     def search(self, query, k=TOP_K, max_chars=2000):
-        """Поиск по запросу"""
+        # Поиск по запросу
         query_vec = self.embedder.encode([query])
         distances, indices = self.index.search(query_vec.astype('float32'), k)
         
@@ -62,14 +60,14 @@ class RAGCore:
         return results
     
     def get_context(self, query, k=TOP_K, max_chars=2000):
-        """Получить контекст в виде текста"""
+        # Получение контекста в виде текста
         results = self.search(query, k, max_chars)
         if not results:
-            return "Релевантные документы не найдены"
+            return "Подходящие документы не найдены"
         
         parts = []
         for r in results:
-            parts.append(f"[ИСТОЧНИК: {r['source']}]\n{r['text']}")
+            parts.append(f"[Источник: {r['source']}]\n{r['text']}")
         
         return "\n\n---\n\n".join(parts)
 
@@ -78,7 +76,7 @@ class RAGHandler(BaseHTTPRequestHandler):
     rag = None  # Будет установлен при запуске
     
     def do_GET(self):
-        """Обработка GET запросов /?q=запрос"""
+        # Обработка GET запросов
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
         
@@ -107,7 +105,7 @@ class RAGHandler(BaseHTTPRequestHandler):
         pass
 
 def run_server(port=8080):
-    """Запуск HTTP сервера"""
+    # Запуск HTTP сервера
     server = HTTPServer(('localhost', port), RAGHandler)
     print(f"RAG сервер запущен на http://localhost:{port}")
     #print("   Используйте: http://localhost:8080/?q=ваш запрос")

@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
-"""
-PRODUCTION MCP VULNERABILITY SCANNER - FULL NETWORK SCAN
-Сканирование всех хостов в сети 192.168.10.0/24 на все порты
-Версия 2.0.0 (дипломный проект)
-"""
-
+# Модуль для запуска внешних
+# команд - позволяет выполнять 
+# программы из Python (например, nmap)
 import subprocess
+# Работа с JSON - для сохранения результатов в структурированном формате
 import json
+# Взаимодействие с операционной системой - пути к файлам, создание директорий
 import os
+# Системные функции - доступ к аргументам командной строки, 
 import sys
 import time
+# HTTP-запросы - для связи с Ollama API (локальный AI)
 import requests
+# Дата и время - для временных меток в именах файлов
 from datetime import datetime
 from pathlib import Path
+# Типизация - подсказки типов для лучшей читаемости кода
 from typing import Dict, Any, List, Optional
+# Регулярные выражения - поиск паттернов в тексте
 import re
+# Работа с IP-адресами - парсинг и валидация сетей
 import ipaddress
+# Параллельное выполнение - сканирование нескольких хостов одновременно
 import concurrent.futures
+# Многопоточность - для потокобезопасного вывода
 import threading
 
 # Конфигурация
@@ -25,111 +32,77 @@ SCANNER_PATH = ".\mcp-vulnerability-scanner"
 OLLAMA_MODEL = "qwen2.5-coder:7b-instruct-q4_K_M"
 NETWORK = "192.168.10.0/24"  # Сеть для сканирования
 MAX_WORKERS = 5  # Максимальное количество параллельных сканирований
-SCAN_TIMEOUT = 300  # Таймаут на сканирование одного хоста (5 минут)
+SCAN_TIMEOUT = 300  # Время на сканирование одного хоста (секунды)
 PORT_SCAN_RANGE = "1-65535"  # Все порты
 
-# Блокировка для потокобезопасного вывода
+# Функция, используемая для того, чтобы каждое сканирование 
+# выводило данные в консоль поочередно, а не одновременно
 print_lock = threading.Lock()
-
+#Создание нужной папки - если её нет, 
+#(exist_ok=True - наличие искомой папки просто пропускает эту операцию)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-
+#Функция для вывода в консоль любых принимаемых данных,
 def safe_print(*args, **kwargs):
-    """Потокобезопасный вывод в консоль"""
+    #with print_lock - только один поток может печатать одновременно
     with print_lock:
         print(*args, **kwargs)
-
+# Класс для описания сканера
 class ProductionScanner:
-    """Продакшн-сканер с поддержкой реальных данных"""
-    
+       
     def __init__(self):
-        self.nmap_available = self._check_nmap()
-        self.vulndb_configured = self._check_vulndb_config()
-        self.scanner_ready = False
-        self.scan_results = {}  # Словарь для хранения результатов всех хостов
-        
-    def _check_nmap(self) -> bool:
-        """Проверяет наличие Nmap в системе"""
-        try:
-            result = subprocess.run(
-                ["nmap", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                version = result.stdout.split('\n')[0]
-                safe_print(f"Nmap найден: {version}")
-                return True
-        except:
-            pass
-        safe_print("Nmap не найден. Сканирование будет ограничено.")
-        return False
-    
-    def _check_vulndb_config(self) -> bool:
-        """Проверяет наличие API ключа VulnDB"""
-        env_file = Path(SCANNER_PATH) / ".env"
-        if env_file.exists():
-            with open(env_file, 'r') as f:
-                content = f.read()
-                if 'VULNDB_API_KEY=' in content and 'your_key' not in content:
-                    safe_print("VulnDB API ключ настроен")
-                    return True
-        safe_print("VulnDB API ключ не настроен. Используются тестовые данные.")
-        return False
-    
+        self.nmap_available = True
+        self.vulndb_configured = True
+        self.scanner_ready = True
+        # Массив для хранения результатов сканирования
+        self.scan_results = {}    
+    # Вывод список обнаруженных IP адресов
+   
     def discover_hosts(self) -> List[str]:
-        """
-        Обнаруживает все живые хосты в сети с помощью ping sweep
-        """
-        safe_print(f"\nОбнаружение хостов в сети {NETWORK}...")
-        
+        safe_print(f"\nПоиск хостов в сети {NETWORK}...")
+        # Массив для обнаруженных хостов с помощью ping sweep
         live_hosts = []
         
         try:
-            # Используем nmap для ping sweep если доступен
+            # Используем Nmap
             if self.nmap_available:
-                safe_print("  Использование Nmap для обнаружения хостов...")
+                safe_print("  Nmap запущен...")
+                # Команда Nmap для пингования сети
                 cmd = ["nmap", "-sn", NETWORK]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                # Запуск Nmap
+                result = subprocess.run(
+                cmd, # Команда для выполнения
+                shell=True, # Использовать командную оболочку Windows
+                capture_output=True, # Захват stdout и stderr
+                text=True, # Работа с текстом, а не с байтами
+                timeout=SCAN_TIMEOUT
+            )
                 
-                # Парсим вывод nmap для извлечения живых хостов
+            
+                # Парсинг вывода nmap по хостам с помощью цикла 
+                # для анализа каждой строчки
                 for line in result.stdout.split('\n'):
+                    # Определение IP адреса по ключевому слову 
+                    # "Nmap scan report for" в отчетах Nmap
                     if "Nmap scan report for" in line:
                         # Извлекаем IP из строки
                         ip_match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
                         if ip_match:
                             ip = ip_match.group(1)
+                            # Извлекаем IP из результата поиска
                             live_hosts.append(ip)
-                            safe_print(f"    Найден хост: {ip}")
+                            safe_print(f"    Найден хост: {ip}")   
             
             # Если nmap недоступен, сканируем всю сеть (может быть медленно)
-            else:
-                safe_print("  Nmap недоступен, сканирование всех IP в сети...")
-                network = ipaddress.ip_network(NETWORK, strict=False)
-                for ip in network.hosts():
-                    # Простая проверка ping
-                    response = subprocess.run(
-                        ["ping", "-n", "1", "-w", "500", str(ip)],
-                        capture_output=True,
-                        text=True
-                    )
-                    if response.returncode == 0:
-                        live_hosts.append(str(ip))
-                        safe_print(f"    Найден хост: {ip}")
             
         except Exception as e:
             safe_print(f"  Ошибка обнаружения хостов: {e}")
         
         safe_print(f"\nВсего обнаружено хостов: {len(live_hosts)}")
         return live_hosts
-    
+    # Выполняет сканирование IP-адреса на все порты
     def scan_ip_full(self, ip: str) -> Dict[str, Any]:
-        """
-        Выполняет ПОЛНОЕ сканирование IP-адреса на ВСЕ порты
-        """
-        safe_print(f"\nПОЛНОЕ СКАНИРОВАНИЕ {ip} (все порты 1-65535)...")
         
-        # JSON-RPC запрос к MCP серверу
+        # С помощью JSON-RPC запрос формируем команду для MCP сервера
         request = {
             "jsonrpc": "2.0",
             "method": "tools/call",
@@ -137,73 +110,69 @@ class ProductionScanner:
                 "name": "scan-ip",
                 "arguments": {
                     "ip": ip,
-                    "options": f"-sV -p {PORT_SCAN_RANGE}"  # Сканирование всех портов
+                    "options": f"-sV -p {PORT_SCAN_RANGE}"
                 }
             },
             "id": 1
         }
         
-        # Сохраняем запрос
+        # Сохраняем запрос во временном файле
         temp_file = os.path.join(OUTPUT_DIR, f"temp_{ip.replace('.', '_')}.json")
         with open(temp_file, 'w', encoding='utf-8') as f:
             json.dump(request, f)
         
-        # Запускаем сканер
+        # Запускаем сканер в Windows
+        """Команда для Windows:
+        type "{temp_file}" - читаем файл
+        cd /d "{SCANNER_PATH}" - переходим в папку сканера
+        && npm run dev - запускаем MCP сервер"""
         cmd = f'type "{temp_file}" | cd /d "{SCANNER_PATH}" && npm run dev'
         
         try:
             start_time = time.time()
             result = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
+                cmd, # Команда для выполнения
+                shell=True, # Использовать командную оболочку Windows
+                capture_output=True, # Захват stdout и stderr
+                text=True, # Работа с текстом, а не с байтами
                 timeout=SCAN_TIMEOUT
             )
             elapsed = time.time() - start_time
             
-            # Парсим ответ
+            # Парсинг ответа, полученного от MCP сервера
             scan_result = self._parse_response(result.stdout, ip)
             
-            # Обогащаем результатами Nmap если доступен (для полноты)
+            # Добавление результатов с Nmap
             if self.nmap_available:
                 scan_result = self._enrich_with_nmap_full(scan_result, ip)
             
             scan_result['scan_duration'] = elapsed
-            safe_print(f"  Сканирование завершено за {elapsed:.1f} сек")
+            safe_print(f" Сканирование завершено за {elapsed:.1f} сек")
             
             return scan_result
-            
-        except subprocess.TimeoutExpired:
-            safe_print(f"  Таймаут сканирования {ip}")
-            return {"error": "Timeout", "ip": ip}
-        except Exception as e:
-            safe_print(f"  Ошибка: {e}")
-            return {"error": str(e), "ip": ip}
+        # Блок анализа и вывода времени сканирования     
         finally:
             if os.path.exists(temp_file):
-                os.remove(temp_file)
-    
+                os.remove(temp_file)   
+    # Функция сохранения результатов сканирования
     def scan_ip_parallel(self, ip: str) -> Dict[str, Any]:
-        """
-        Обертка для параллельного сканирования с сохранением результатов
-        """
         result = self.scan_ip_full(ip)
         self.scan_results[ip] = result
         return result
-    
+    # Парсинг ответа от MCP сервера
     def _parse_response(self, output: str, ip: str) -> Dict[str, Any]:
-        """Парсит ответ от MCP сервера"""
-        # Ищем JSON в выводе
+        
+        # Ищем JSON
         for line in output.split('\n'):
             line = line.strip()
+            # Если строка похожа на JSON, то пробуем его распарсить
             if line.startswith('{') and line.endswith('}'):
                 try:
                     return json.loads(line)
                 except:
                     continue
         
-        # Если JSON не найден, создаем структурированный ответ
+        # Если такой JSON не найден, создаем структурированный ответ
         return {
             "ip": ip,
             "timestamp": datetime.now().isoformat(),
@@ -211,15 +180,16 @@ class ProductionScanner:
             "vulnerabilities": self._extract_vulnerabilities(output),
             "open_ports": self._extract_ports(output)
         }
-    
+    # Добавление данных от nmap
     def _enrich_with_nmap_full(self, scan_result: Dict[str, Any], ip: str) -> Dict[str, Any]:
-        """Обогащает результаты полным Nmap сканированием"""
-        safe_print("  Запуск полного Nmap сканирования (все порты)...")
+        
+        safe_print(" Запуск Nmap сканирования.")
         
         try:
             # Полное сканирование всех портов с определением версий
+            cmd = ["nmap", "-sV", "-p", PORT_SCAN_RANGE, ip]
             nmap_result = subprocess.run(
-                ["nmap", "-sV", "-p", PORT_SCAN_RANGE, ip],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=SCAN_TIMEOUT
@@ -228,7 +198,6 @@ class ProductionScanner:
             if nmap_result.returncode == 0:
                 scan_result['nmap_full_scan'] = nmap_result.stdout
                 
-                # Парсим открытые порты
                 ports = []
                 for line in nmap_result.stdout.split('\n'):
                     if '/tcp' in line and 'open' in line:
@@ -239,21 +208,22 @@ class ProductionScanner:
                             'service': parts[2] if len(parts) > 2 else 'unknown',
                             'version': ' '.join(parts[3:]) if len(parts) > 3 else ''
                         }
+                        # Добавление в список выше
                         ports.append(port_info)
                 
                 scan_result['open_ports_full'] = ports
-                safe_print(f"    Найдено портов (полное сканирование): {len(ports)}")
+                safe_print(f" Найдено открытых портов: {len(ports)}")
                 
         except Exception as e:
-            safe_print(f"    Ошибка Nmap: {e}")
+            safe_print(f" Ошибка Nmap: {e}")
         
         return scan_result
-    
+    # Посик CVE уязвимостяей в тексте
     def _extract_vulnerabilities(self, text: str) -> List[Dict[str, Any]]:
-        """Извлекает информацию об уязвимостях из текста"""
+        
         vulns = []
         
-        # Ищем CVE номера
+        # Ищем CVE номера по паттернну
         cve_pattern = r'CVE-\d{4}-\d+'
         cves = re.findall(cve_pattern, text)
         
@@ -280,70 +250,48 @@ class ProductionScanner:
         return list(set(ports))
     
     def get_status_report(self) -> str:
-        """Возвращает отчет о состоянии системы"""
         report = []
-        report.append("="*60)
-        report.append("СТАТУС СИСТЕМЫ")
-        report.append("="*60)
-        
-        report.append(f"\nДиректория результатов: {OUTPUT_DIR}")
-        report.append(f"Директория сканера: {SCANNER_PATH}")
+        report.append(f"Папка сохранения результатов: {OUTPUT_DIR}")
         report.append(f"Сеть для сканирования: {NETWORK}")
         report.append(f"Диапазон портов: {PORT_SCAN_RANGE}")
-        report.append(f"Параллельных потоков: {MAX_WORKERS}")
-        
-        report.append(f"\nКомпоненты:")
-        report.append(f"  • Nmap: {'ДОСТУПЕН' if self.nmap_available else 'НЕ НАЙДЕН'}")
-        report.append(f"  • VulnDB API: {'НАСТРОЕН' if self.vulndb_configured else 'НЕ НАСТРОЕН'}")
-        
-        if not self.nmap_available:
-            report.append("\nВНИМАНИЕ: Для полноценной работы установите Nmap:")
-            report.append("   https://nmap.org/download.html")
-        
-        if not self.vulndb_configured:
-            report.append("\nВНИМАНИЕ: Для реальных CVE настройте VulnDB API:")
-            report.append("   1. Зарегистрируйтесь на https://vuldb.com")
-            report.append("   2. Получите API ключ")
-            report.append(f"   3. Создайте файл {SCANNER_PATH}\\.env с:")
-            report.append("      VULNDB_API_KEY=ваш_ключ")
-        
+        report.append(f"Параллельных потоков сканирования: {MAX_WORKERS}")      
+               
         return '\n'.join(report)
 
-
+# Описание анализатора в Ollama
 class OllamaAnalyzer:
-    """Анализатор на основе Ollama"""
-    
+        
     def __init__(self):
         self.available = self._check_ollama()
     
+    # Проверка доступности Ollama
     def _check_ollama(self) -> bool:
         try:
             requests.get("http://localhost:11434/api/tags", timeout=2)
             return True
         except:
             return False
-    
+   # Запуск анализа результатов сканирования
     def analyze(self, ip: str, scan_data: Dict[str, Any]) -> str:
-        """Глубокий анализ результатов сканирования"""
         
         if not self.available:
-            return "Ollama недоступен. Анализ пропущен."
+            return "Ollama недоступен. Запустите Ollama."
         
-        # Используем полные данные если есть
+        # Используем полные данные и добавляем описание для промпта
         ports_info = scan_data.get('open_ports_full', scan_data.get('open_ports', []))
         vulns = scan_data.get('vulnerabilities', [])
         
         ports_text = "\n".join([
             f"  - Порт {p['port']}: {p['service']} {p.get('version', '')}"
             for p in ports_info[:20]
-        ]) if ports_info else "  Открытые порты не обнаружены"
+        ]) if ports_info else " Открытые порты не обнаружены. "
         
         vulns_text = "\n".join([
             f"  - {v['id']} (источник: {v.get('source', 'unknown')})"
             for v in vulns[:15]
-        ]) if vulns else "  Уязвимости не обнаружены"
+        ]) if vulns else " Уязвимости не обнаружены. "
         
-        prompt = f"""Ты — эксперт по кибербезопасности. Проанализируй результаты ПОЛНОГО сканирования (все порты 1-65535).
+        prompt = f"""Ты — эксперт по информационной безопасности и кибербезопасности. Проанализируй результаты сканирования всех портов хостов).
 
 IP АДРЕС: {ip}
 
@@ -371,7 +319,7 @@ IP АДРЕС: {ip}
    - Рекомендации по усилению защиты
    - Приоритеты устранения уязвимостей
 
-Ответ предоставь на русском языке, кратко и по делу."""
+Ответ предоставь на русском языке, кратко и самое основное."""
         
         try:
             response = requests.post(
@@ -387,7 +335,7 @@ IP АДРЕС: {ip}
                 },
                 timeout=60
             )
-            
+            # Возвращаем ответ модели
             if response.status_code == 200:
                 return response.json().get('response', 'Нет ответа')
             else:
@@ -395,16 +343,14 @@ IP АДРЕС: {ip}
         except Exception as e:
             return f"Ошибка подключения к Ollama: {e}"
 
-
+# Функция вызова сканирования
 def scan_worker(scanner: ProductionScanner, ip: str):
-    """Функция для параллельного сканирования"""
-    safe_print(f"\n{'='*70}")
+    
     safe_print(f"СКАНИРОВАНИЕ ХОСТА: {ip}")
-    safe_print(f"{'='*70}")
     
     result = scanner.scan_ip_parallel(ip)
     
-    # Сохранение JSON для этого хоста
+    # Сохранение JSON для этого хоста с нужным названием
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_ip = ip.replace('.', '_')
     json_file = os.path.join(OUTPUT_DIR, f"scan_full_{safe_ip}_{timestamp}.json")
@@ -412,21 +358,15 @@ def scan_worker(scanner: ProductionScanner, ip: str):
     with open(json_file, 'w', encoding='utf-8') as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
     
-    safe_print(f"\nJSON сохранен: {os.path.basename(json_file)}")
+    safe_print(f"JSON сохранен: {os.path.basename(json_file)}")
     
     return result
 
-
+# Главная функция
 def main():
-    """Главная функция"""
+    print("Сканирование всех хостов в сети 192.168.10.0/24.")
     
-    print("="*80)
-    print("PRODUCTION MCP VULNERABILITY SCANNER - FULL NETWORK SCAN")
-    print("Сканирование всех хостов в сети 192.168.10.0/24 на все порты")
-    print("Версия 2.0.0 (дипломный проект)")
-    print("="*80)
-    
-    # Инициализация
+    # Инициализация инструментов
     scanner = ProductionScanner()
     analyzer = OllamaAnalyzer()
     
@@ -434,27 +374,25 @@ def main():
     print(scanner.get_status_report())
     
     # Обнаружение хостов
-    print(f"\nЭТАП 1: ОБНАРУЖЕНИЕ ХОСТОВ В СЕТИ {NETWORK}")
-    print("="*70)
+    print(f"ЭТАП 1: ПОИСК ХОСТОВ В СЕТИ {NETWORK}")
     live_hosts = scanner.discover_hosts()
     
     if not live_hosts:
-        print("\nНе обнаружено живых хостов в сети!")
+        print("Не обнаружено хостов в сети!")
         return
     
-    print(f"\nНайдено живых хостов: {len(live_hosts)}")
-    print(f"Результаты будут сохранены в: {OUTPUT_DIR}")
+    print(f"Найдено работающих хостов: {len(live_hosts)}")
+    print(f"Результаты будут сохранены в папке по следующему адресу: {OUTPUT_DIR}")
     
-    # Подтверждение
-    response = input(f"\nНачать ПОЛНОЕ сканирование всех портов для {len(live_hosts)} хостов? (y/n): ")
+    # Проверка определены ли все хосты верно
+    response = input(f"Начать сканирование {len(live_hosts)} хостов? (y/n): ")
     if response.lower() != 'y':
-        print("Сканирование отменено")
+        print("Сканирование отменено пользователем")
         return
     
-    print(f"\nЭТАП 2: ПОЛНОЕ СКАНИРОВАНИЕ ВСЕХ ПОРТОВ (1-65535)")
-    print(f"   Параллельных потоков: {MAX_WORKERS}")
-    print(f"   Таймаут на хост: {SCAN_TIMEOUT} сек")
-    print("="*70)
+    print(f"ЭТАП 2: СКАНИРОВАНИЕ ХОСТОВ")
+    print(f"Параллельных потоков: {MAX_WORKERS}")
+    print(f"Таймаут на хост: {SCAN_TIMEOUT} сек")
     
     start_time = time.time()
     
@@ -471,15 +409,12 @@ def main():
     
     elapsed_total = time.time() - start_time
     
-    print(f"\n{'='*70}")
-    print("ЭТАП 3: AI-АНАЛИЗ РЕЗУЛЬТАТОВ")
-    
-    
+    print("ЭТАП 3: АНАЛИЗ РЕЗУЛЬТАТОВ")
     # Анализ каждого хоста
     all_results = scanner.scan_results
     
     for ip, scan_result in all_results.items():
-        print(f"\nАнализ хоста {ip}...")
+        print(f"Анализ хоста {ip}...")
         analysis = analyzer.analyze(ip, scan_result)
         
         # Сохранение анализа
@@ -488,16 +423,14 @@ def main():
         analysis_file = os.path.join(OUTPUT_DIR, f"analysis_full_{safe_ip}_{timestamp}.txt")
         
         with open(analysis_file, 'w', encoding='utf-8') as f:
-            f.write(f"ПОЛНЫЙ АНАЛИЗ БЕЗОПАСНОСТИ {ip}\n")
-            f.write("="*60 + "\n\n")
+            f.write(f"АНАЛИЗ БЕЗОПАСНОСТИ {ip}\n")
             f.write(analysis)
         
         print(f"Анализ сохранен: {os.path.basename(analysis_file)}")
     
     # Сохранение сводного отчета
-    print(f"\nЭТАП 4: ФОРМИРОВАНИЕ СВОДНОГО ОТЧЕТА")
+    print(f"ЭТАП 4: ИТОГОВЫЙ ОТЧЕТ")
  
-    
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     summary_file = os.path.join(OUTPUT_DIR, f"summary_full_scan_{timestamp}.json")
     
@@ -514,36 +447,22 @@ def main():
     with open(summary_file, 'w', encoding='utf-8') as f:
         json.dump(summary_data, f, indent=2, ensure_ascii=False)
     
-    print(f"\n{'='*70}")
-    print("ПОЛНОЕ СКАНИРОВАНИЕ СЕТИ ЗАВЕРШЕНО")
-    print(f"{'='*70}")
-    print(f"\nСтатистика:")
+    print("СКАНИРОВАНИЕ СЕТИ ЗАВЕРШЕНО")
+    print(f"Статистика:")
     print(f"   • Обнаружено хостов: {len(live_hosts)}")
     print(f"   • Просканировано: {len(all_results)}")
-    print(f"   • Общее время: {elapsed_total:.1f} сек ({elapsed_total/60:.1f} мин)")
-    print(f"\nВсе результаты: {OUTPUT_DIR}")
+    print(f"   • Общее время сканирования: {elapsed_total:.1f} сек ({elapsed_total/60:.1f} мин)")
+    print(f"Все результаты сохранены в папке: {OUTPUT_DIR}")
     print(f"Сводный отчет: {os.path.basename(summary_file)}")
     
-    # Итоговый статус
-    print(f"\nИТОГОВЫЙ СТАТУС:")
-    print(f"  • Nmap: {'ДОСТУПЕН' if scanner.nmap_available else 'НЕ НАЙДЕН'}")
-    print(f"  • VulnDB: {'НАСТРОЕН' if scanner.vulndb_configured else 'НЕ НАСТРОЕН'}")
-    print(f"  • Ollama: {'ДОСТУПЕН' if analyzer.available else 'НЕ ДОСТУПЕН'}")
-    
-    if not scanner.nmap_available:
-        print("\nРекомендация: Установите Nmap для получения более точных результатов")
-    if not scanner.vulndb_configured:
-        print("Рекомендация: Настройте VulnDB API для получения реальных CVE")
-    
-    print(f"\nРабота программы завершена.")
-
+    print(f"Работа программы завершена.")
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\nСканирование прервано пользователем")
+        print("Сканирование прервано пользователем")
     except Exception as e:
-        print(f"\nКритическая ошибка: {e}")
+        print(f"Критическая ошибка: {e}")
         import traceback
         traceback.print_exc()

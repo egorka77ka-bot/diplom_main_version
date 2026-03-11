@@ -1,0 +1,46 @@
+{
+  "scan_time": "2026-03-11T20:56:38.477608",
+  "total_hosts": 3,
+  "successful_scans": 0,
+  "failed_scans": 3,
+  "results": {
+    "192.168.10.10": {
+      "config": {
+        "ip": "192.168.10.10",
+        "os": "windows",
+        "username": "administrator",
+        "password": "123",
+        "port": 5985
+      },
+      "error": "Failed to collect software information",
+      "timestamp": "2026-03-11T20:56:18.460737"
+    },
+    "192.168.10.20": {
+      "config": {
+        "ip": "192.168.10.20",
+        "os": "linux",
+        "username": "egor",
+        "password": "123",
+        "port": 22
+      },
+      "error": "Failed to collect software information",
+      "timestamp": "2026-03-11T20:56:28.463100"
+    },
+    "192.168.10.101": {
+      "config": {
+        "ip": "192.168.10.101",
+        "os": "linux",
+        "username": "egor1",
+        "password": "123",
+        "port": 22
+      },
+      "error": "Failed to collect software information",
+      "timestamp": "2026-03-11T20:56:38.477608"
+    }
+  },
+  "summary": {
+    "total_software": 0,
+    "total_vulnerable": 0,
+    "vulnerability_rate": "0%"
+  }
+}
