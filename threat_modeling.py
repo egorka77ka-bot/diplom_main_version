@@ -2,106 +2,141 @@ import os
 import json
 import glob
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import PyPDF2
 import docx2txt
 import requests
+from pathlib import Path
 
-# ПРАВИЛЬНЫЕ ИМПОРТЫ ДЛЯ LANGCHAIN 0.3.x
+# Класс для создания шаблонов промптов
 from langchain_core.prompts import PromptTemplate
+# Библиотека для преобразования ответа LLM в строку
 from langchain_core.output_parsers import StrOutputParser
-from langchain_community.llms import Ollama
-from langchain_core.runnables import RunnableSequence
+from langchain_ollama import OllamaLLM
 
+# Пути к данным
+RESULTS_DIR = "model_results"
+COMPANY_DOCS_PATH = "./company_docs"
+SCANS_PATH = ".\local-rag-mcp\src\docs"
+RAG_SERVER_URL = "http://localhost:8080"
+
+# Клиент для подключения к rag-серверу
 class RAGClient:
-    """Клиент для подключения к RAG серверу (rag_core.py)"""
-    
-    def __init__(self, server_url="http://localhost:8080"):
-        self.server_url = server_url
+        
+    def __init__(self, server_url: str = RAG_SERVER_URL):
+        self.server_url = server_url.rstrip('/')
         self.available = self._check_connection()
         if self.available:
-            print("Подключение к серверу успешно.")
+            print("Подключение к RAG серверу успешно.")
         else:
-            print("Сервер не доступен (запустите rag_core.py).")
+            print("RAG сервер не доступен. Убедитесь, что local-rag-mcp запущен.")
+            print("Запустите: cd local-rag-mcp/src && uvicorn main:app --host 0.0.0.0 --port 8000")
     
-    def _check_connection(self):
+    # Проверка доступности RAG сервера
+    def _check_connection(self) -> bool:
         try:
-            response = requests.get(f"{self.server_url}/?q=test", timeout=2)
-            return response.status_code == 200
+            
+                    response = requests.get(
+                        f"{self.server_url}", 
+                        timeout=2
+                    )
+                    if response.status_code == 200:
+                        return True
+                
         except:
             return False
     
-    def get_context(self, query, k=3):
+    
+    # Получение данных из RAG
+    def get_context(self, query: str, k: int = 3) -> str:
         if not self.available:
             return ""
         try:
+            # Пробуем разные форматы запроса
             response = requests.get(
                 f"{self.server_url}/",
                 params={"q": query, "k": k},
                 timeout=5
             )
+            
             if response.status_code == 200:
                 results = response.json()
-                parts = []
-                for r in results:
-                    parts.append(f"[Из документа: {r['source']}]\n{r['text']}")
-                return "\n\n---\n\n".join(parts)
-        except:
-            pass
+                if isinstance(results, list) and results:
+                    parts = []
+                    for r in results:
+                        source = r.get('source', r.get('file', 'unknown'))
+                        text = r.get('text', r.get('content', ''))
+                        parts.append(f"Из документа: {source}]\n{text}")
+                    return "\n\n---\n\n".join(parts)
+        except Exception as e:
+            print(f" Ошибка при запросе к RAG: {e}")
+        
         return ""
 
-llm = Ollama(
+
+# Инициализация LLM с новой библиотекой
+llm = OllamaLLM(
     model="qwen2.5-coder:7b-instruct-q4_K_M",
     base_url="http://localhost:11434",
-    temperature=0.3,
+    temperature=0.2,
     num_ctx=128000,
     num_predict=8000,
-    verbose=False
+    # При выборе следующего слова рассматривать только 40 лучших вариантов
+    # Отсекает маловероятные варианты
+    top_k=40,
+    # выбирает слова пока сумма вероятностей < 0.9
+    top_p=0.9,
 )
-
 print("LangChain настроен")
-# Класс для чтения документов
+
 class CompanyDocumentReader:
+        
+    SUPPORTED_EXTENSIONS = {'.txt', '.pdf', '.docx', '.csv', '.json', '.md'}
     
     def __init__(self, docs_path: str):
         self.docs_path = docs_path
-        self.documents = []
         
-    def read_all_documents(self) -> List[Dict]:
+    def read_all_documents(self, max_docs : int = 50, max_size: int = 3000) -> List[Dict]:
         print(f"\nЧтение документов из: {self.docs_path}")
         
         if not os.path.exists(self.docs_path):
             print(f"Папка не найдена: {self.docs_path}")
             return []
-        # Типы файлов
-        file_patterns = ["*.txt", "*.pdf", "*.docx", "*.csv", "*.json", "*.md"]
-        all_files = []
-        # Определение типов файлов
-        for pattern in file_patterns:
-            all_files.extend(glob.glob(os.path.join(self.docs_path, pattern)))
         
-        print(f"Найдено файлов: {len(all_files)}")
-        # Чтение, определение и загрузка документов
+        # Сбор файлов
+        all_files = []
+        for ext in self.SUPPORTED_EXTENSIONS:
+            all_files.extend(glob.glob(os.path.join(self.docs_path, f"*{ext}")))
+        
+        print(f"Всего файлов: {len(all_files)}")
+        
+        # Чтение файлов
         documents = []
-        for file_path in all_files:
+        for i, file_path in enumerate(all_files):
+                            
             print(f"  Чтение: {os.path.basename(file_path)}")
-            content = self.read_file(file_path)
+            content = self._read_file(file_path)
             
             if content and len(content.strip()) > 0:
+                # Ограничиваем размер
+                if len(content) > max_size:
+                    content = content[:max_size] + "\n..."
+                
                 documents.append({
                     "file": os.path.basename(file_path),
-                    "content": content[:3000],
-                    "type": os.path.splitext(file_path)[1]
+                    "content": content,
+                    "type": os.path.splitext(file_path)[1].lower(),
+                    "full_path": file_path
                 })
         
-        print(f"Загружено документов: {len(documents)}")
+        print(f"Всего загружено {len(documents)} документов.")
         return documents
-    # Функция чтение каждого типа файлов
-    def read_file(self, file_path: str) -> str:
+    # Функция чтения файлов
+    def _read_file(self, file_path: str) -> str:
         ext = os.path.splitext(file_path)[1].lower()
         
-        try:
-            if ext == '.txt' or ext == '.md':
+        try:           
+            if ext in ['.txt', '.md', '.csv']:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     return f.read()
             
@@ -109,8 +144,10 @@ class CompanyDocumentReader:
                 text = []
                 with open(file_path, 'rb') as f:
                     pdf_reader = PyPDF2.PdfReader(f)
-                    for page in pdf_reader.pages[:10]:
-                        text.append(page.extract_text())
+                    for page in pdf_reader.pages[:20]:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text.append(page_text)
                 return '\n'.join(text)
             
             elif ext == '.docx':
@@ -119,25 +156,25 @@ class CompanyDocumentReader:
             elif ext == '.json':
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                return json.dumps(data, ensure_ascii=False, indent=2)[:3000]
+                return json.dumps(data, ensure_ascii=False, indent=2)
             
         except Exception as e:
-            print(f" Ошибка чтения {file_path}: {e}")
+            print(f"Ошибка чтения {file_path}: {e}")
             return ""
         
         return ""
 
-
-# ========== ПРОМПТЫ ДЛЯ КАЖДОЙ ГЛАВЫ ==========
-
 chapter1_prompt = PromptTemplate(
-    input_variables=["company_context", "host_summaries"],
+    input_variables=["company_context", "rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 1:
-    
-    Контекст компании:
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 1 отчета.
+
+    Документы компании:
     {company_context}
-       
+
+    Информация из базы знаний:
+    {rag_context}
+
     1. Сведения об основании, заказчике и целях работы
 
 В этом разделе нужно указать:
@@ -146,48 +183,52 @@ chapter1_prompt = PromptTemplate(
 
 Кто заказчик: Полное наименование организации-владельца системы (или оператора).
 
-Кто исполнитель: Название вашей компании (или ваше имя, если вы частный специалист).
+Кто исполнитель: Название вашей компании.
 
-Даты начала и окончания работ (тестирования).
+Даты начала и окончания работ.
 
 Цели: (например: «оценка соответствия требованиям к защите информации», «проверка эффективности реализованных мер защиты», «подготовка к аттестации»).
 
-Задачи: Что конкретно делали (провели инвентаризацию, выявили уязвимости, оценили риски).
+Задачи: Что конкретно делали, например: провели инвентаризацию, выявили уязвимости, оценили риски.
     """
 )
 
 chapter2_prompt = PromptTemplate(
-    input_variables=["documents"],
+    input_variables=["documents", "rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 2:
-    
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 2 отчета.
+
     Документы компании:
-    {documents}
-    
+    {company_context}
+
+    Информация из базы знаний:
+    {rag_context}
+
     2. Информация об используемых средствах.
 
 Нужно перечислить все программное обеспечение, которое применялось для анализа. Указывать лучше с версиями, чтобы можно было воспроизвести результаты.
 
 Сканеры уязвимостей, например, MaxPatrol 8, RedCheck, XSpider.
 
-Инструменты для пентеста: Nmap (версия), Burp Suite, Wireshark, Metasploit и т.д.
+Инструменты для пентеста: Nmap с версией, Burp Suite, Wireshark, Metasploit и т.д.
 
-Собственные программные коды или средства: Если использовались, стоит указать их назначение (например: «скрипт для перебора паролей на протоколе SSH»).
+Собственные программные коды или средства: Если использовались, стоит указать их назначение (например: «код для перебора паролей на протоколе SSH»).
     
     """
 )
 
 chapter3_prompt = PromptTemplate(
-    input_variables=["company_context"],
+    input_variables=["scan_data", "rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 3:
-    
-    Контекст компании:
-    {company_context}
-    
-    3.Результаты сканирования сетей.
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 3 отчета.
 
-Это результат этапа разведки, где нужно показать, что вы обследовали. Например, такой перечень:
+    Документы компании:
+    {company_context}
+
+    Информация из базы знаний:
+    {rag_context}
+
+   Здесь нужно показать результат исследования системы. Например, такой перечень:
 
 - Сетевые адреса - IP-адреса и имена хостов.
 
@@ -196,17 +237,21 @@ chapter3_prompt = PromptTemplate(
 - Сетевые сервисы - DNS, DHCP, Web-серверы и т.д.
 
 - Программное обеспечение - операционные системы, версии ПО, установленные приложения (CMS, СУБД и т.д.).
+ 
     """
 )
 
 chapter4_prompt = PromptTemplate(
-    input_variables=["scan_files"],
+    input_variables=["scan_data", "rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 4: 
-    
-    Данные сканирования:
-    {scan_files}
-    
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 4 отчета.
+
+    Документы компании:
+    {company_context}
+
+    Информация из базы знаний:
+    {rag_context}
+
     4. Краткое описание пентестинга
     Внешнее тестирование - что делали со стороны черного хакера.
 
@@ -216,54 +261,59 @@ chapter4_prompt = PromptTemplate(
 )
 
 chapter5_prompt = PromptTemplate(
-    input_variables=["scan_data", "host_index", "total_hosts"],
+    input_variables=["scan_data", "rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 5:
-    
-    Данные хоста:
-    {scan_data}
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 5 отчета.
 
-    Анализы хостов:
-    {host_analyses}
-    
+    Документы компании:
+    {company_context}
+
+    Информация из базы знаний:
+    {rag_context}
+
     5. Перечень и описание найденных уязвимостей
-    
-Это самая большая часть. По каждой уязвимости нужно указать:
+    Это самая большая часть. По каждой уязвимости нужно указать:
 
-- Название уязвимости (например, «Использование устаревшей версии OpenSSL»).
+- Название уязвимости, CVE-номер.
 
-- IP-адрес/хост и порт.
+- IP-адрес/хост и порт этой уязвимости.
 
-- Подробности об уязвимости (например: CVE-номер, подробное описание этого CVE).
+- Описание этой уязвимости.
+
+И так для каждой уязвимости делать такое описание.
+
     """
 )
 
 chapter6_prompt = PromptTemplate(
-    input_variables=["company_context", "host_analyses"],
+    input_variables=["vulnerabilities", "rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 6:
-    
-    Контекст компании:
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 6 отчета.
+
+    Документы компании:
     {company_context}
-    
-    Анализы хостов:
-    {host_analyses}
-    
-    6. Присвоение каждой найденной проблеме уровень опасности, используя шкалы CVSS: Критичная; Высокая; Средняя; Низкая.
+
+    Информация из базы знаний:
+    {rag_context}
+
+     6. Присвоение каждой найденной проблеме уровень опасности, используя шкалы CVSS: Критичная; Высокая; Средняя; Низкая.
     """
 )
 
 chapter7_prompt = PromptTemplate(
-    input_variables=["all_data"],
+    input_variables=["all_data", "rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 7:
-    
-    Данные для анализа:
-    {all_data}
-    
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 7 отчета.
+
+    Документы компании:
+    {company_context}
+
+    Информация из базы знаний:
+    {rag_context}
+
     7. Перечень наиболее опасных уязвимостей (с обоснованием)
 
-Здесь из общего списка (пункт д) выбираются самые опасные для бизнеса. 
+Здесь из общего списка (Глава 6) выбираются самые опасные для бизнеса. 
 
 Критерий выбора — возможность реализации конкретной атаки, которая приведет к негативным последствиям. 
 
@@ -272,13 +322,16 @@ chapter7_prompt = PromptTemplate(
 )
 
 chapter8_prompt = PromptTemplate(
-    input_variables=["risks"],
+    input_variables=["risks", "rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 8:
-    
-    Оцененные риски:
-    {risks}
-    
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 8 отчета.
+
+    Документы компании:
+    {company_context}
+
+    Информация из базы знаний:
+    {rag_context}
+
     8. Рекомендации по устранению уязвимостей
 
 Нужно дать конкретные советы и рекомендации по устранению уязвимости. 
@@ -287,85 +340,49 @@ chapter8_prompt = PromptTemplate(
 
  - «Обновить версию Apache до 2.4.1»;
 
- - «Установить патч KB123456 от Microsoft»;
+ - «Установить новый патч от Microsoft»;
 
  - «Сменить пароль на сложный, настроить политику блокировки»;
 
- - «Закрыть порт 1433 на сетевом экране для доступа извне».
+ - «Закрыть порт № на сетевом экране для доступа извне».
     """
 )
 
 chapter9_prompt = PromptTemplate(
     input_variables=["rag_context"],
     template="""
-    НАПИШИ ГЛАВУ 9:
-    
-    
-    9. Ограничения на действия исполнителя
+    Ты эксперт по информационной безопасности. Напиши ГЛАВУ 9 отчета.
 
-Важный раздел для снятия ответственности. Если что-то пошло не так или что-то не проверили — причина может быть здесь. Нужно указать:
-
-Запреты на работы и «запрещен перебор паролей на домен-контроллере».
-
-Исключения - например, какие хосты или подсети не входили в зону тестирования (например: «биллинговая система не проверялась»).
-
-Отсутствие доступа: Если заказчик не дал логин/пароль для сканирования или доступ к настройкам, это тоже ограничение.
-    
-    Данные компании:
+    Информация из базы знаний:
     {rag_context}
+
+    9. Ограничения на действия исполнителя
+    - Запреты ксающиеся проведения определенного вида работ
+    - Исключения дл проведения работ
+    - Отсутствие доступа к определенным ресурсам
     """
 )
-
-
 
 assemble_prompt = PromptTemplate(
-    input_variables=["chapter1", "chapter2", "chapter3", "chapter4", "chapter5", 
-                     "chapter6", "chapter7", "chapter8", "chapter9"],
+    input_variables=["chapters"],
     template="""
-    СОБЕРИ ФИНАЛЬНЫЙ ОТЧЕТ ИЗ ВСЕХ ГЛАВ:
-    
-    ГЛАВА 1:
-    {chapter1}
-    
-    ГЛАВА 2:
-    {chapter2}
-    
-    ГЛАВА 3:
-    {chapter3}
-    
-    ГЛАВА 4:
-    {chapter4}
-    
-    ГЛАВА 5:
-    {chapter5}
-    
-    ГЛАВА 6:
-    {chapter6}
-    
-    ГЛАВА 7:
-    {chapter7}
-    
-    ГЛАВА 8:
-    {chapter8}
-    
-    ГЛАВА 9:
-    {chapter9}
-     
-    ТРЕБОВАНИЯ К ФОРМАТИРОВАНИЮ:
-    1. Сформируй титульный лист с названием отчета и датой
-    2. Добавь оглавление
-    3. Вставь все главы по порядку
-    4. Добавь колонтитулы (номер страницы, дата)
-    5. Обеспечь единое форматирование
+    Ты эксперт по информационной безопасности. Составь финальный отчет из глав.
+
+    ТРЕБОВАНИЯ:
+    1. Создай титульный лист с названием "ОТЧЕТ ПО МОДЕЛИРОВАНИЮ УГРОЗ"
+    2. Укажи дату: {date}
+    3. Добавь оглавление
+    4. Вставь все главы по порядку
+    5. Добавь колонтитулы
+
+    {chapters}
     """
 )
 
-# В новых версиях LangChain используем pipe operator (|) вместо LLMChai
-# Функция создания цепочки промптов
 def create_chain(prompt):
     return prompt | llm | StrOutputParser()
 
-# Создаем цепочки для каждой главы
+# Создаем цепочки
 chapter1_chain = create_chain(chapter1_prompt)
 chapter2_chain = create_chain(chapter2_prompt)
 chapter3_chain = create_chain(chapter3_prompt)
@@ -377,268 +394,201 @@ chapter8_chain = create_chain(chapter8_prompt)
 chapter9_chain = create_chain(chapter9_prompt)
 assemble_chain = create_chain(assemble_prompt)
 
-# Написание модели угроз
 def generate_threat_report(scan_files: List[str], company_docs: List[Dict], rag: RAGClient) -> Dict:
-        
-    print("\nСоздание модели угроз")
-    rag_ctx_1 = rag.get_context(""" 1. Сведения об основании, заказчике и целях работы
-
-В этом разделе нужно указать:
-
-Номер договора, технического задания, приказа или ссылка на требование регулятора (например, ФСТЭК, приказ о личной ответственности).
-
-Кто заказчик: Полное наименование организации-владельца системы (или оператора).
-
-Кто исполнитель: Название вашей компании (или ваше имя, если вы частный специалист).
-
-Даты начала и окончания работ (тестирования).
-
-Цели: (например: «оценка соответствия требованиям к защите информации», «проверка эффективности реализованных мер защиты», «подготовка к аттестации»).
-
-Задачи: Что конкретно делали (провели инвентаризацию, выявили уязвимости, оценили риски).
-    """)
-    rag_ctx_2 = rag.get_context("""2. Информация об используемых средствах.
-
-Нужно перечислить все программное обеспечение, которое применялось для анализа. Указывать лучше с версиями, чтобы можно было воспроизвести результаты.
-
-Сканеры уязвимостей, например, MaxPatrol 8, RedCheck, XSpider.
-
-Инструменты для пентеста: Nmap (версия), Burp Suite, Wireshark, Metasploit и т.д.
-
-Собственные программные коды или средства: Если использовались, стоит указать их назначение (например: «скрипт для перебора паролей на протоколе SSH»).
+    """Генерация отчета"""
+    print("\nНачало генерации модели угроз")
     
-    """)
-    rag_ctx_3 = rag.get_context("""3.Результаты сканирования сетей.
-
-Это результат этапа разведки, где нужно показать, что вы обследовали. Например, такой перечень:
-
-- Сетевые адреса - IP-адреса и имена хостов.
-
-- Открытые порты и службы - примером может служить следующий вариант «На хосте 10.0.0.1 открыт 22 порт (SSH), 80 порт (HTTP)».
-
-- Сетевые сервисы - DNS, DHCP, Web-серверы и т.д.
-
-- Программное обеспечение - операционные системы, версии ПО, установленные приложения (CMS, СУБД и т.д.).
-    """)
-    rag_ctx_4 = rag.get_context(""" 4. Краткое описание пентестинга
-    Внешнее тестирование - что делали со стороны черного хакера.
-
-    Внутреннее тестирование - что делали, находясь уже внутри сети, со стороны белого хакера.
-
-    """)
-    rag_ctx_5 = rag.get_context("""5. Перечень и описание найденных уязвимостей
-    
-Это самая большая часть. По каждой уязвимости нужно указать:
-
-- Название уязвимости (например, «Использование устаревшей версии OpenSSL»).
-
-- IP-адрес/хост и порт.
-
-- Подробности об уязвимости (например: CVE-номер, подробное описание этого CVE).
-    """)
-    rag_ctx_6 = rag.get_context("""6. Присвоение каждой найденной проблеме уровень опасности, используя шкалы CVSS: Критичная; Высокая; Средняя; Низкая.
-    """)
-    rag_ctx_7 = rag.get_context("""7. Перечень наиболее опасных уязвимостей (с обоснованием)
-
-Здесь из общего списка (пункт д) выбираются самые опасные для бизнеса. 
-
-Критерий выбора — возможность реализации конкретной атаки, которая приведет к негативным последствиям. 
-
-Пример обоснования: «Уязвимость "Слабый пароль на RDP" подлежит устранению, так как позволяет злоумышленнику подобрать пароль, войти на сервер и украсть базу данных клиентов».
-    """)
-    rag_ctx_8 = rag.get_context(""" 8. Рекомендации по устранению уязвимостей
-
-Нужно дать конкретные советы и рекомендации по устранению уязвимости. 
-
-Например, можно сказать:
-
- - «Обновить версию Apache до 2.4.1»;
-
- - «Установить патч KB123456 от Microsoft»;
-
- - «Сменить пароль на сложный, настроить политику блокировки»;
-
- - «Закрыть порт 1433 на сетевом экране для доступа извне».
-    """)
-    rag_ctx_9 = rag.get_context("""9. Ограничения на действия исполнителя
-
-Важный раздел для снятия ответственности. Если что-то пошло не так или что-то не проверили — причина может быть здесь. Нужно указать:
-
-Запреты на работы и «запрещен перебор паролей на домен-контроллере».
-
-Исключения - например, какие хосты или подсети не входили в зону тестирования (например: «биллинговая система не проверялась»).
-
-Отсутствие доступа: Если заказчик не дал логин/пароль для сканирования или доступ к настройкам, это тоже ограничение.
-    """)
-
-    # Подготавливаем документы компании
+    # Подготовка данных из документов компании
     docs_text = "\n\n---\n\n".join([
         f"Файл: {doc['file']}\n{doc['content']}" 
-        for doc in company_docs[:6]
+        for doc in company_docs[:1]
     ])
+        
+    # Получение RAG данных для каждой главы
+    print("\nПолучение даных из RAG...")
+    rag_ctx_1 = rag.get_context("договор заказчик цели работы техническое задание")
+    rag_ctx_2 = rag.get_context("инструменты сканеры уязвимости nmap burp metasploit")
+    rag_ctx_3 = rag.get_context("сеть ip адреса порты службы операционные системы")
+    rag_ctx_4 = rag.get_context("пентест тестирование внешнее внутреннее методология")
+    rag_ctx_5 = rag.get_context("уязвимости cve описание обнаружение")
+    rag_ctx_6 = rag.get_context("cvss уровень опасности критичность")
+    rag_ctx_7 = rag.get_context("критические уязвимости риски последствия")
+    rag_ctx_8 = rag.get_context("рекомендации устранение патчи обновления")
+    rag_ctx_9 = rag.get_context("ограничения запреты исключения доступ")
     
-    # Читаем все данные сканирования
-    all_scan_data = []
-    for file_path in scan_files:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            all_scan_data.append(f.read())
-    
-    scan_text = "\n\n---\n\n".join(all_scan_data)
-    
-    print("\nГлава 1: Сведения об основании, заказчике и целях работы")
+    # Генерация глав
+    print("\nГлава 1: Основные сведения")
     ch1 = chapter1_chain.invoke({
-        "company_context": docs_text[:3000]
+        "company_context": docs_text,
+        "rag_context": rag_ctx_1
     })
     
-    print("Глава 2: Информация об используемых средствах")
-    ch2 = chapter2_chain.invoke({"documents": docs_text[:4000]})
+    print("Глава 2: Используемые средствах")
+    ch2 = chapter2_chain.invoke({
+        "company_context": docs_text,
+        "rag_context": rag_ctx_2
+    })
     
     print("Глава 3: Результаты сканирования сетей")
-    ch3 = chapter3_chain.invoke({"company_context": ch2[:2000]})
+    ch3 = chapter3_chain.invoke({
+        "company_context": docs_text,
+        "rag_context": rag_ctx_3
+    })
     
     print("Глава 4: Краткое описание пентестинга")
-    ch4 = chapter4_chain.invoke({"scan_files": scan_text[:4000]})
-
+    ch4 = chapter4_chain.invoke({
+        "company_context": docs_text,
+        "rag_context": rag_ctx_4
+    })
+    
     print("Глава 5: Перечень и описание найденных уязвимостей")
     ch5 = chapter5_chain.invoke({
-        "company_context": docs_text[:3000],
-        "vulnerabilities": scan_text[:2000]
+        "company_context": docs_text,
+        "rag_context": rag_ctx_5
     })
-
-    print("Глава 6: Присвоение каждой найденной проблеме уровень опасности")
-    ch6 = chapter6_chain.invoke({
-        "company_context": ch2[:2000],
-        "vulnerabilities": ch5[:3000]
-    })
-       
-    print("Глава 7: Перечень наиболее опасных уязвимостей (с обоснованием)")
-    ch7 = chapter7_chain.invoke({"all_data": f"{ch4[:2000]}\n{ch6[:2000]}"})
-       
-    print("Глава 8: Рекомендации по устранению уязвимостей")
-    ch8 = chapter8_chain.invoke({"risks": ch7[:2000]})
-        
-    print("Глава 9: Ограничения на действия исполнителя")
-    ch9 = chapter9_chain.invoke({"controls": ch8[:2000]})
-         
-    # итоговый отчет
-    print("\nФинальный отчет...")
-    final = assemble_chain.invoke({
-        "chapter1": ch1,
-        "chapter2": ch2,
-        "chapter3": ch3,
-        "chapter4": ch4,
-        "chapter5": ch5,
-        "chapter6": ch6,
-        "chapter7": ch7,
-        "chapter8": ch8,
-        "chapter9": ch9,
-    })
-    print(f"Получено {len(final)} символов")
     
-    # Сохраняем все главы 
-    all_chapters = {
-        "chapter1": ch1,
-        "chapter2": ch2,
-        "chapter3": ch3,
-        "chapter4": ch4,
-        "chapter5": ch5,
-        "chapter6": ch6,
-        "chapter7": ch7,
-        "chapter8": ch8,
-        "chapter9": ch9,
+    print("Глава 6: Присвоение уровня опасности")
+    ch6 = chapter6_chain.invoke({
+        "company_context": ch5[:],
+        "rag_context": rag_ctx_6
+    })
+    
+    print("Глава 7: Наиболее опасные уязвимости")
+    ch7 = chapter7_chain.invoke({
+        "company_context": f"{ch5[:]}\n{ch6[:]}",
+        "rag_context": rag_ctx_7
+    })
+    
+    print("Глава 8: Рекомендации по устранению")
+    ch8 = chapter8_chain.invoke({
+        "company_context": ch7[:],
+        "rag_context": rag_ctx_8
+    })
+    
+    print("Глава 9: Ограничения на действия исполнителя")
+    ch9 = chapter9_chain.invoke({
+        "rag_context": rag_ctx_9
+    })
+    
+    print("\nНаписание отчета")
+    chapters_text = ""
+    for i, ch in enumerate([ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9], 1):
+        chapters_text += f"\n\nГлава {i}\n\n{ch}"
+    
+    final = assemble_chain.invoke({
+        "chapters": chapters_text,
+        "date": datetime.now().strftime("%d.%m.%Y")
+    })
+    
+    print(f"Отчет сгенерирован!")
+    
+    return {
+        "chapter1": ch1, "chapter2": ch2, "chapter3": ch3,
+        "chapter4": ch4, "chapter5": ch5, "chapter6": ch6,
+        "chapter7": ch7, "chapter8": ch8, "chapter9": ch9,
         "final": final
     }
+
+
+def save_report(chapters: Dict, scan_files: List[str]) -> Dict:
+    # Создаем директорию для результатов
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     
-    return all_chapters
-
-
-# Сохранение все главы и финальный отчет
-def save_report(chapters: Dict, scan_files: List[str]):
-    results_dir = ".\model_results"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     print("\nСохранение результатов")
     
     # Сохраняем финальный отчет
-    final_file = os.path.join(results_dir, f"THREAT_REPORT_{timestamp}.txt")
+    final_file = os.path.join(RESULTS_DIR, f"threat_report_{timestamp}.txt")
     with open(final_file, 'w', encoding='utf-8') as f:
         f.write(chapters["final"])
     
-    size = os.path.getsize(final_file) / 1024
-    pages = size / 3
-    print(f"Итоговый отчет: {os.path.basename(final_file)}")
-    print(f"Размер: {size:.0f} KB (~{pages:.0f} страниц)")
+    size_kb = os.path.getsize(final_file) / 1024
+    pages = size_kb / 3
     
-    # Сохраняем отдельные главы
-    for i in range(1, 13):
+    print(f"Итоговый отчет: {os.path.basename(final_file)}")
+    print(f"Размер: {size_kb:.0f} KB (~{pages:.0f} страниц)")
+    
+    # Сохраняем главы
+    chapters_dir = os.path.join(RESULTS_DIR, f"chapters_{timestamp}")
+    os.makedirs(chapters_dir, exist_ok=True)
+    
+    for i in range(1, 10):
         chapter_key = f"chapter{i}"
         if chapter_key in chapters:
-            chapter_file = os.path.join(results_dir, f"chapter_{i:02d}_{timestamp}.txt")
+            chapter_file = os.path.join(chapters_dir, f"chapter_{i:02d}.txt")
             with open(chapter_file, 'w', encoding='utf-8') as f:
-                f.write(f"Глава {i}\n")
                 f.write(chapters[chapter_key])
             print(f"Глава {i}: {os.path.basename(chapter_file)}")
     
-    # Сохраняем JSON со всеми данными
-    json_file = os.path.join(results_dir, f"report_data_{timestamp}.json")
-    with open(json_file, 'w', encoding='utf-8') as f:
-        json.dump({
-            "timestamp": timestamp,
-            "stats": {
-                "final_report_size_kb": size,
-                "estimated_pages": pages
-            }
-        }, f, ensure_ascii=False, indent=2)
+    # Метаданные
+    metadata = {
+        "timestamp": timestamp,
+        "final_report": final_file,
+        "size_kb": size_kb,
+        "pages": pages,
+        "scan_files": [os.path.basename(f) for f in scan_files[:10]]
+    }
+    
+    meta_file = os.path.join(RESULTS_DIR, f"metadata_{timestamp}.json")
+    with open(meta_file, 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, indent=2, ensure_ascii=False)
     
     return {
         "final": final_file,
-        "pages": pages
+        "pages": pages,
+        "metadata": meta_file
     }
 
-
-# Реализация основной функции
 def main():
-
+    # Проверка наличия RAG сервера
     rag = RAGClient()
-    # Пути хранения файлов
-    docs_path = "./company_docs"
-    scans_path = "./RAG/data"
     
-    # Загрузка документов
-    doc_reader = CompanyDocumentReader(docs_path)
-    company_docs = doc_reader.read_all_documents()
+    if not rag.available:
+        print("\nRAG сервер не запущен!")
+        print(f"Запустите его в другом окне терминала:")
+        print(f"cd {os.path.abspath('local-rag-mcp/src')}")
+        print(f"python main.py")
+        print("\nПродолжить без RAG? (y/n): ")
+        response = input().strip().lower()
+        if response != 'y':
+            print("Анализ отменен")
+            return
+    
+    # Чтение документов компании
+    reader = CompanyDocumentReader(COMPANY_DOCS_PATH)
+    company_docs = reader.read_all_documents()
     
     # Поиск файлов сканирования
-    scan_files = glob.glob(os.path.join(scans_path, "scan_*.json"))
+    scan_files = glob.glob(os.path.join(SCANS_PATH, "scan_*.json"))
     scan_files.sort()
     
     if not scan_files:
-        print("Файлы отсутствуют")
+        print("Файлы сканирования не найдены")
         return
     
-    print(f"\nВсего хостов: {len(scan_files)}")
-    print(f"Документоd: {len(company_docs)}")
+    print(f"\Найдено хостов: {len(scan_files)}")
+    print(f"Документов компании: {len(company_docs)}")
     
     response = input("\nНачать анализ? (y/n): ").strip().lower()
     if response != 'y':
         print("Анализ отменен")
         return
     
-    # Запуск
-    print("Запуск анализа")
-    print("Это займет 1-2 часа...")
-    
+    # Запуск   
     try:
-        chapters = generate_threat_report(scan_files, company_docs)
+        chapters = generate_threat_report(scan_files, company_docs, rag)
         
         # Сохранение
         saved = save_report(chapters, scan_files)
         
         print("Анализ завершен")
         print(f"\nФинальный отчет: {os.path.basename(saved['final'])}")
-        print(f"В документе содержится {saved['pages']:.0f} страниц")
-        print(f"\nВсе файлы сохранены в папке по адресу: {scans_path}")
+        print(f"Объем: {saved['pages']:.0f} страниц")
+        print(f"\nВсе файлы сохранены в папке: {RESULTS_DIR}")
         
+    except KeyboardInterrupt:
+        print("\n\nАнализ прерван пользователем")
     except Exception as e:
         print(f"\nОшибка: {e}")
         import traceback
@@ -646,9 +596,4 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\nПрервано пользователем")
-    except Exception as e:
-        print(f"\nОшибка: {e}")
+    main()

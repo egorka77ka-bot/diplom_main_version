@@ -27,7 +27,7 @@ import concurrent.futures
 import threading
 
 # Конфигурация
-OUTPUT_DIR = ".\RAG\data"
+OUTPUT_DIR = ".\local-rag-mcp\src\docs"
 SCANNER_PATH = ".\mcp-vulnerability-scanner"
 OLLAMA_MODEL = "qwen2.5-coder:7b-instruct-q4_K_M"
 NETWORK = "192.168.10.0/24"  # Сеть для сканирования
