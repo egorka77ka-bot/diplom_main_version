@@ -5,88 +5,88 @@ from pathlib import Path
 from rich.console import Console
 from rich.markdown import Markdown
 
-# Add current directory to path for imports
+# Добавляем текущую директорию в путь для импортов
 sys.path.insert(0, str(Path(__file__).parent))
 from rag.query import retrieve, build_prompt, ask_llm
 from mcp.client import MCPClient
 from config import OLLAMA_MODEL
 
 class CompanyKBAssistant:
-    """Company Knowledge Base Assistant combining RAG and MCP."""
-    
+        
     def __init__(self):
         self.llm_client = ollama.Client()
         self.mcp = None
         self._init_mcp()
-        
+    # Запуск MCP агента    
     def _init_mcp(self):
-        """Initialize MCP client."""
+        
         try:
             import sys
             from pathlib import Path
             python_cmd = sys.executable
-            # Get absolute path to MCP server
+            # Получаем путь к MCP серверу
             mcp_path = Path(__file__).parent / "mcp" / "server.py"
             self.mcp = MCPClient([python_cmd, str(mcp_path)])
         except Exception as e:
-            print(f"Warning: Could not initialize MCP client: {e}")
+            print(f" Предупреждение: Не удалось инициализировать MCP клиент: {e}")
             self.mcp = None
     
     def _llm_decide_mcp_usage(self, query: str, contexts):
-        """Ask LLM if MCP tools are needed based on query and retrieved contexts."""
+        """Запрос к LLM о необходимости использования MCP инструментов на основе запроса и полученных контекстов."""
         if not self.mcp:
             return None, None
         
-        # Build context summary for LLM decision
+        # Формируем сводку контекста для принятия решения LLM
         context_summary = ""
         if contexts:
-            context_summary = f"Retrieved {len(contexts)} relevant chunks from knowledge base:\n"
-            for i, ctx in enumerate(contexts[:3], 1):  # Show first 3 chunks
-                context_summary += f"{i}. From {ctx['source']}: {ctx['text'][:200]}...\n"
+            context_summary = f" Получено {len(contexts)} соответствующих фрагментов из базы знаний:\n"
+            for i, ctx in enumerate(contexts[:3], 1):  
+                # Показываем первые 3 фрагмента
+                context_summary += f"{i}. Из {ctx['source']}: {ctx['text'][:200]}...\n"
         else:
-            context_summary = "No relevant chunks found in knowledge base.\n"
+            context_summary = "Соответствующие фрагменты в базе знаний не найдены.\n"
         
-        decision_prompt = f"""You are helping answer a question using a knowledge base system with RAG (retrieval) and MCP tools.
+        decision_prompt = f""" Ты помогаешь отвечать на вопросы, используя систему базы знаний с RAG (поиск) и MCP инструментами.
 
-User question: {query}
+Вопрос пользователя: {query}
 
 {context_summary}
 
-Available MCP tools:
-1. read_document(file_path: str) - Read a specific document file (use when you need full document content)
-2. list_documents() - List all available documents (use when user asks "what documents exist" or "list all docs")
-3. search_documents(query: str) - Search for documents by name (use when user asks to find a specific document)
+Доступные MCP инструменты:
+1. read_document(file_path: str) - Прочитать конкретный файл документа (используй, когда нужно полное содержание документа)
+2. list_documents() - Показать список всех доступных документов (используй, когда пользователь спрашивает "какие есть документы" или "покажи все документы")
+3. search_documents(query: str) - Поиск документов по названию (используй, когда пользователь просит найти конкретный документ)
 
-Decision rules:
-- If the retrieved chunks fully answer the question, set use_mcp to false
-- If chunks are empty or insufficient, consider using MCP tools
-- If user explicitly asks to read/list/search documents, use the appropriate tool
-- If you need the full content of a specific document mentioned in chunks, use read_document
-- When in doubt, prefer not using MCP (chunks are usually sufficient)
+Правила принятия решения:
+- Если полученные фрагменты полностью отвечают на вопрос, установи use_mcp в false
+- Если фрагменты пусты или недостаточны, рассмотри использование MCP инструментов
+- Если пользователь явно просит прочитать/показать/найти документы, используй соответствующий инструмент
+- Если нужно полное содержание конкретного документа, упомянутого во фрагментах, используй read_document
+- В случае сомнений, предпочти не использовать MCP (обычно фрагментов достаточно)
 
-Respond ONLY with valid JSON, no other text:
-{{"use_mcp": true/false, "tool": "tool_name_or_null", "args": {{"arg_name": "value"}}}}
+Отвечай ТОЛЬКО корректным JSON, без дополнительного текста:
+{{"use_mcp": true/false, "tool": "имя_инструмента_или_null", "args": {{"имя_аргумента": "значение"}}}}
 
-Examples:
+Примеры:
 {{"use_mcp": false, "tool": null, "args": {{}}}}
 {{"use_mcp": true, "tool": "read_document", "args": {{"file_path": "docs/vacation-policy.md"}}}}
 {{"use_mcp": true, "tool": "list_documents", "args": {{}}}}
-{{"use_mcp": true, "tool": "search_documents", "args": {{"query": "vacation"}}}}
+{{"use_mcp": true, "tool": "search_documents", "args": {{"query": "отпуск"}}}}
 
-Your JSON response:"""
+Твой JSON ответ:"""
 
         try:
             response = self.llm_client.chat(
                 model=OLLAMA_MODEL,
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant that decides when to use tools. Always respond with valid JSON only."},
+                    {"role": "system", "content": "Ты полезный ассистент, который решает, когда использовать инструменты. Всегда отвечай только корректным JSON."},
                     {"role": "user", "content": decision_prompt}
                 ]
             )
             
             response_text = response["message"]["content"].strip()
             
-            # Clean up JSON if wrapped in markdown
+            # Очищаем JSON, если он обернут в markdown
             if response_text.startswith("```"):
                 response_text = response_text.split("```")[1]
                 if response_text.startswith("json"):
@@ -103,11 +103,11 @@ Your JSON response:"""
             return None, None
             
         except Exception as e:
-            # If LLM decision fails, don't use MCP
+            # Если решение LLM не удалось, не используем MCP
             return None, None
     
     def _call_mcp_tool(self, tool_name: str, tool_args: dict):
-        """Call an MCP tool with given name and arguments."""
+        """Вызов MCP инструмента с указанным именем и аргументами."""
         if not self.mcp:
             return None
         
@@ -115,40 +115,40 @@ Your JSON response:"""
             result = self.mcp.call_tool(tool_name, tool_args)
             return result.get("result", "")
         except Exception as e:
-            return f"Error calling MCP tool {tool_name}: {str(e)}"
+            return f" Ошибка вызова MCP инструмента {tool_name}: {str(e)}"
     
     def query(self, user_query: str, verbose=False):
-        """Answer a question using RAG and optionally MCP tools."""
-        # Step 1: Retrieve from RAG
+        """Ответ на вопрос с использованием RAG и опционально MCP инструментов."""
+        # Шаг 1: Получение данных из RAG
         contexts = retrieve(user_query)
         
         if verbose:
-            print(f"📚 Retrieved {len(contexts)} relevant chunks from knowledge base")
+            print(f" Получено {len(contexts)} релевантных фрагментов из базы знаний")
         
-        # Step 2: Ask LLM if MCP tools are needed
+        # Шаг 2: Запрос к LLM о необходимости MCP инструментов
         mcp_result = None
         mcp_tool_used = None
         tool_name, tool_args = self._llm_decide_mcp_usage(user_query, contexts)
         
         if tool_name:
             if verbose:
-                print(f"🔧 LLM decided to use MCP tool: {tool_name} with args: {tool_args}")
+                print(f" LLM решил использовать MCP инструмент: {tool_name} с аргументами: {tool_args}")
             mcp_result = self._call_mcp_tool(tool_name, tool_args)
             mcp_tool_used = tool_name
             if verbose and mcp_result:
-                print(f"✅ MCP tool returned result (length: {len(mcp_result)} chars)")
+                print(f" MCP инструмент вернул результат (длина: {len(mcp_result)} символов)")
         
-        # Step 3: Build prompt with RAG context
+        # Шаг 3: Формирование промпта с контекстом RAG
         prompt = build_prompt(user_query, contexts)
         
-        # Step 4: Add MCP result if available
+        # Шаг 4: Добавление результата MCP, если доступен
         if mcp_result:
             prompt += f"\n\n<additional_info_from_mcp_tool>\n{mcp_result}\n</additional_info_from_mcp_tool>\n"
         
-        # Step 5: Generate answer
+        # Шаг 5: Генерация ответа
         answer = ask_llm(prompt)
         
-        # Step 6: Prepare response with sources
+        # Шаг 6: Подготовка ответа с источниками
         sources = [c["source"] for c in contexts] if contexts else []
         
         return {
@@ -159,7 +159,6 @@ Your JSON response:"""
         }
     
     def close(self):
-        """Clean up resources."""
         if self.mcp:
             self.mcp.close()
 
@@ -167,25 +166,25 @@ Your JSON response:"""
 if __name__ == "__main__":
     assistant = CompanyKBAssistant()
     
-    print("🤖 Company Knowledge Base Assistant")
-    print("Type 'exit' or 'quit' to stop\n")
+    print(" Ассистент базы знаний компании")
+    print(" Введите 'exit' или 'quit' для выхода\n")
     
     try:
         while True:
-            query = input("❓ Question: ")
+            query = input(" Вопрос: ")
             if query.lower() in {"exit", "quit"}:
                 break
             
             print("\n" + "─" * 60)
             result = assistant.query(query, verbose=True)
             
-            print("\n🤖 Answer:\n")
+            print("\n Ответ:\n")
 
             console = Console(force_terminal=True)
             console.print(Markdown(result["answer"]))
             
             if result["sources"]:
-                print("\n📚 Sources:")
+                print("\n Источники:")
                 seen_sources = set()
                 for src in result["sources"]:
                     if src not in seen_sources:
@@ -193,7 +192,7 @@ if __name__ == "__main__":
                         seen_sources.add(src)
             
             if result["mcp_used"]:
-                print(f"\n🔧 Used MCP tool: {result['mcp_tool']}")
+                print(f"\n Использован MCP инструмент: {result['mcp_tool']}")
             
             print("─" * 60 + "\n")
     

@@ -3,49 +3,66 @@ import pickle
 import sys
 from pathlib import Path
 
-# Add parent directory to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from rag.ingest import ingest_documents
 from rag.chunk import chunk_documents
 from rag.embed import embed_chunks
-from config import FAISS_INDEX_PATH, CHUNKS_PATH
+from config import FAISS_INDEX_PATH, CHUNKS_PATH, METADATA_PATH, DATA_DIR
 
 
 def build_index():
-    """Build FAISS index from documents."""
-    # Resolve paths relative to src directory
-    src_dir = Path(__file__).parent.parent
-    index_path = src_dir / FAISS_INDEX_PATH
-    chunks_path = src_dir / CHUNKS_PATH
+    print("BUILDING FAISS INDEX WITH METADATA")
     
-    print("📥 Loading documents...")
+    # Create data directory if needed
+    DATA_DIR.mkdir(exist_ok=True)
+    
+    print("\n[1/5] Loading documents...")
     documents = ingest_documents()
 
     if not documents:
-        print("❌ No documents found. Please add documents to the docs directory.")
+        print("No documents found.")
         return
 
-    print("✂️ Chunking...")
+    print(f"   Loaded {len(documents)} documents")
+
+    print("\n[2/5] Chunking documents...")
     chunks = chunk_documents(documents)
+    print(f"   Created {len(chunks)} chunks")
 
-    print("🧠 Generating embeddings...")
+    print("\n[3/5] Generating embeddings...")
     embeddings = embed_chunks(chunks)
+    print(f"   Embeddings shape: {embeddings.shape}")
 
-    print("📦 Creating FAISS index...")
+    print("\n[4/5] Creating FAISS index...")
     dim = embeddings.shape[1]
     index = faiss.IndexFlatIP(dim)
     faiss.normalize_L2(embeddings)
     index.add(embeddings)
+    print(f"   Index contains {index.ntotal} vectors")
 
-    print("💾 Saving...")
-    faiss.write_index(index, str(index_path))
-    with open(chunks_path, "wb") as f:
+    print("\n[5/5] Saving files...")
+    
+    faiss.write_index(index, str(FAISS_INDEX_PATH))
+    print(f"   FAISS index saved: {FAISS_INDEX_PATH}")
+    
+    with open(METADATA_PATH, "wb") as f:
         pickle.dump(chunks, f)
+    print(f"   Chunks with metadata saved: {METADATA_PATH}")
+    
+    simple_chunks = [{"text": c["text"], "source": c["source"]} for c in chunks]
+    with open(CHUNKS_PATH, "wb") as f:
+        pickle.dump(simple_chunks, f)
+    print(f"   Legacy chunks saved: {CHUNKS_PATH}")
 
-    print(f"✅ Indexing complete: {len(chunks)} chunks indexed")
-    print(f"   Index saved to: {index_path}")
-    print(f"   Chunks saved to: {chunks_path}")
-
+    print("INDEXING COMPLETE")
+    print(f"   Total chunks: {len(chunks)}")
+    
+    if chunks:
+        sample = chunks[0].get("metadata", {})
+        print(f"\n   Sample metadata:")
+        print(f"   - filename: {sample.get('filename', 'N/A')}")
+        print(f"   - chunk_id: {sample.get('chunk_id', 'N/A')}")
+        print(f"   - source: {sample.get('source', 'N/A')}")
 
 if __name__ == "__main__":
     build_index()

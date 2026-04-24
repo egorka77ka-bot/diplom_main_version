@@ -1,15 +1,20 @@
+import os
+import sys
 import faiss
 import pickle
 import requests
-import sys
+import numpy as np
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
+# Исправление для Python 3.14
 
-# Add parent directory to path for config import
+os.environ['HF_HUB_DISABLE_SSL_VERIFY'] = '1'
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
     FAISS_INDEX_PATH,
     CHUNKS_PATH,
+    METADATA_PATH,
     EMBEDDING_MODEL,
     OLLAMA_URL,
     OLLAMA_MODEL,
@@ -18,80 +23,97 @@ from config import (
 
 model = SentenceTransformer(EMBEDDING_MODEL)
 
-# Global variables for index and chunks
 index = None
-chunks = []
+chunks_with_metadata = []
 
 
 def _ensure_index_exists():
     """Ensure FAISS index exists, build it if it doesn't."""
-    global index, chunks
+    global index, chunks_with_metadata
     
-    # Resolve paths relative to src directory
     src_dir = Path(__file__).parent.parent
     index_path = src_dir / FAISS_INDEX_PATH
-    chunks_path = src_dir / CHUNKS_PATH
+    metadata_path = src_dir / METADATA_PATH
     
-    # Check if index exists
-    if index_path.exists() and chunks_path.exists():
+    if index_path.exists() and metadata_path.exists():
         try:
             index = faiss.read_index(str(index_path))
-            with open(chunks_path, "rb") as f:
-                chunks = pickle.load(f)
+            with open(metadata_path, "rb") as f:
+                chunks_with_metadata = pickle.load(f)
+            print(f" Loaded {len(chunks_with_metadata)} chunks with metadata")
             return True
         except Exception as e:
-            print(f"⚠️  Warning: Error loading existing index: {e}")
+            print(f" Warning: Error loading existing index: {e}")
             print("Rebuilding index...")
     
-    # Index doesn't exist or failed to load, build it
-    print("📦 Index not found. Building index from documents...")
+    print(" Index not found. Building index from documents...")
     try:
         from rag.build_index import build_index
         build_index()
         
-        # Load the newly created index
-        if index_path.exists() and chunks_path.exists():
+        if index_path.exists() and metadata_path.exists():
             index = faiss.read_index(str(index_path))
-            with open(chunks_path, "rb") as f:
-                chunks = pickle.load(f)
-            print("✅ Index built and loaded successfully")
+            with open(metadata_path, "rb") as f:
+                chunks_with_metadata = pickle.load(f)
+            print(" Index built and loaded successfully")
             return True
         else:
-            print("❌ Failed to build index. No documents found or error occurred.")
-            from config import DOCUMENTS_DIR
-            docs_path = src_dir / DOCUMENTS_DIR
-            print(f"   Check that documents exist in: {docs_path}")
+            print(" Failed to build index.")
             return False
     except Exception as e:
-        print(f"❌ Error building index: {e}")
+        print(f" Error building index: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 
-# Initialize index on module load
 _ensure_index_exists()
 
 
-def retrieve(query: str):
-    """Retrieve relevant chunks for a query."""
-    # Ensure index exists before retrieving
-    if index is None or len(chunks) == 0:
-        if not _ensure_index_exists():
-            return []
-    
-    if index is None or len(chunks) == 0:
+def normalize_score(score: float) -> float:
+    """Normalize FAISS inner product score to 0-1 range."""
+    return (score + 1.0) / 2.0
+
+
+def retrieve_with_metadata(query: str, k: int = TOP_K):
+    """Retrieve relevant chunks for a query with full metadata."""
+    if index is None or len(chunks_with_metadata) == 0:
         return []
     
     q_emb = model.encode([query])
     faiss.normalize_L2(q_emb)
+    
+    scores, ids = index.search(q_emb, k)
+    
+    results = []
+    for idx, score in zip(ids[0], scores[0]):
+        if 0 <= idx < len(chunks_with_metadata):
+            chunk = chunks_with_metadata[idx].copy()
+            chunk["score"] = float(normalize_score(score))
+            if "metadata" not in chunk:
+                chunk["metadata"] = {}
+            chunk["metadata"]["chunk_id"] = chunk.get("chunk_id", idx)
+            results.append(chunk)
+    
+    return results
 
-    scores, ids = index.search(q_emb, TOP_K)
-    return [chunks[i] for i in ids[0]]
+
+def retrieve(query: str):
+    """Retrieve relevant chunks for a query with metadata (legacy format)."""
+    results = retrieve_with_metadata(query)
+    legacy_results = []
+    for r in results:
+        legacy_results.append({
+            "text": r.get("text", ""),
+            "source": r.get("source", "unknown"),
+            "metadata": r.get("metadata", {}),
+            "score": r.get("score", 0)
+        })
+    return legacy_results
 
 
 def build_prompt(query, contexts):
-    """Build prompt with retrieved context."""
+    """Build prompt with retrieved context and metadata."""
     if not contexts:
         return f"""
 <role>You are a helpful assistant that answers questions about company information.</role>
@@ -104,10 +126,18 @@ def build_prompt(query, contexts):
 <assistant>
 """
 
-    context_text = "\n\n".join(
-        f"[Source: {c['source']}]\n{c['text']}"
-        for c in contexts
-    )
+    context_parts = []
+    for c in contexts:
+        metadata = c.get("metadata", {})
+        filename = metadata.get("filename", c.get("source", "unknown"))
+        chunk_id = metadata.get("chunk_id", "?")
+        chunk_total = metadata.get("chunk_total", "?")
+        score = c.get("score", 0)
+        
+        metadata_str = f"[RAG: {filename} | чанк {chunk_id}/{chunk_total} | релевантность: {score:.3f}]"
+        context_parts.append(f"{metadata_str}\n{c['text']}")
+
+    context_text = "\n\n".join(context_parts)
 
     return f"""
 <role>You are a helpful assistant that answers questions about company information.</role>
@@ -147,13 +177,17 @@ def ask(query: str):
 
 if __name__ == "__main__":
     while True:
-        q = input("\n❓ Question: ")
+        q = input("\n Question: ")
         if q.lower() in {"exit", "quit"}:
             break
-        print("\n🤖 Answer:\n")
+        print("\n Answer:\n")
         answer, sources = ask(q)
         print(answer)
         if sources:
-            print("\n📚 Sources:")
+            print("\n Sources:")
             for src in sources:
-                print(f"  - {src['source']}")
+                metadata = src.get("metadata", {})
+                filename = metadata.get("filename", src.get("source", "unknown"))
+                chunk_id = metadata.get("chunk_id", "?")
+                score = src.get("score", 0)
+                print(f"  - {filename} (chunk {chunk_id}, score: {score:.3f})")
