@@ -1,0 +1,30 @@
+[
+    {
+        "ip": "192.168.10.1",
+        "os": "windows",
+        "username": "user",
+        "password": "1193",
+        "port": 5985
+    },
+    {
+        "ip": "192.168.10.10",
+        "os": "windows",
+        "username": "administrator",
+        "password": "123",
+        "port": 5985
+    },
+    {
+        "ip": "192.168.10.20",
+        "os": "linux",
+        "username": "egor",
+        "password": "123",
+        "port": 22
+    },
+    {
+        "ip": "192.168.10.101",
+        "os": "linux",
+        "username": "egor1",
+        "password": "123",
+        "port": 22
+    }
+]
