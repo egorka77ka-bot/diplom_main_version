@@ -8,7 +8,10 @@ from pathlib import Path
 from sentence_transformers import SentenceTransformer
 # Исправление для Python 3.14
 
+os.environ['HF_HUB_OFFLINE'] = '1'
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 os.environ['HF_HUB_DISABLE_SSL_VERIFY'] = '1'
+
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
@@ -21,7 +24,8 @@ from config import (
     TOP_K
 )
 
-model = SentenceTransformer(EMBEDDING_MODEL)
+# Загрузка модели только из локального пути
+model = SentenceTransformer(EMBEDDING_MODEL, local_files_only=True)
 
 index = None
 chunks_with_metadata = []

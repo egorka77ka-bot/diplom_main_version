@@ -5,8 +5,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import EMBEDDING_MODEL
+import os
 
-model = SentenceTransformer(EMBEDDING_MODEL)
+
+os.environ['HF_HUB_OFFLINE'] = '1'
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import EMBEDDING_MODEL
+
+# Загрузка модели только из локального пути
+model = SentenceTransformer(EMBEDDING_MODEL, local_files_only=True)
 
 
 def embed_chunks(chunks):

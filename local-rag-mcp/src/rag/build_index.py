@@ -2,13 +2,15 @@ import faiss
 import pickle
 import sys
 from pathlib import Path
-
+import os
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from rag.ingest import ingest_documents
 from rag.chunk import chunk_documents
 from rag.embed import embed_chunks
 from config import FAISS_INDEX_PATH, CHUNKS_PATH, METADATA_PATH, DATA_DIR
 
+os.environ['HF_HUB_OFFLINE'] = '1'
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 def build_index():
     print("BUILDING FAISS INDEX WITH METADATA")

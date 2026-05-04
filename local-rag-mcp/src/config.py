@@ -4,12 +4,13 @@ from pathlib import Path
 # Base paths
 BASE_DIR = Path(__file__).parent                    # src/
 DOCUMENTS_DIR = BASE_DIR / "docs"                   # src/docs/ (документы здесь!)
-DATA_DIR = BASE_DIR / "data"                        # src/data/ (индексы здесь)
+DATA_DIR = BASE_DIR / "data" 
+MODELS_DIR = BASE_DIR / "models"  # Папка с локальными моделями                       # src/data/ (индексы здесь)
 
 # RAG settings
 CHUNK_SIZE = 700
 CHUNK_OVERLAP = 100
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL = str(MODELS_DIR / "all-MiniLM-L6-v2")
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "qwen3:0.6b"
 TOP_K = 130

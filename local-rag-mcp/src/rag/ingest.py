@@ -5,9 +5,13 @@ import sys
 from datetime import datetime
 import pandas as pd
 import json
+import os
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import DOCUMENTS_DIR
+
+os.environ['HF_HUB_OFFLINE'] = '1'
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".xlsx", ".json", ".doc"}
 
@@ -20,8 +24,6 @@ def load_document(path: Path):
         "source": str(path),
         "filename": path.name,
         "extension": path.suffix,
-        "size_bytes": stat.st_size,
-        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
         "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
     }
     
