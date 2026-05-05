@@ -2,7 +2,7 @@
 
 Система автоматизированного моделирования угроз информационной безопасности предприятия на основе методических документов ФСТЭК России с использованием Retrieval-Augmented Generation (RAG) и больших языковых моделей (LLM).
 
-## ПЕРЕД РАБОТОЙ
+## НАЧАЛО РАБОТЫ
 
 Создайте в главной папке проекта папку для сохранения результатов:
 
@@ -35,21 +35,18 @@ pip install ollama rich tiktoken numpy
 
 ### 2.1. Ollama (сервер языковых моделей)
 
-Скачайте и установите с [ollama.com](https://ollama.com/download/windows).
+Скачайте и установите с [ollama.com] (https://ollama.com/download/windows).
 
 Для Linux:
 bash
 curl -fsSL https://ollama.com/install.sh | sh
 
 Загрузите модель:
-powershell
-# Базовая модель (~2.5 ГБ)
-ollama pull qwen3.5:4b
 
-# Модель повышенного качества (~4.4 ГБ)
+powershell
 ollama pull qwen3.5:4b-q8_0
 
-### 2.2. Nmap (сетевой сканер)
+### 2.2. ЗАГРУЗКА сетевого сканера Nmap
 
 Скачайте и установите с [nmap.org](https://nmap.org/download.html). Проверьте установку:
 
@@ -62,17 +59,15 @@ powershell
 pip install uv
 
 ## 3. Настройка локальной модели эмбеддингов
-
-Чтобы RAG-система не обращалась в интернет при каждом запуске, модель `all-MiniLM-L6-v2` сохраняется локально.
-
 ### 3.1. Скачать и сохранить модель (одноразово)
 
 powershell
 cd C:\Working\diplom_main_version\local-rag-mcp\src
 mkdir models
-python -c "from sentence_transformers import SentenceTransformer; model = SentenceTransformer('all-MiniLM-L6-v2'); model.save('models/all-MiniLM-L6-v2'); print('Модель сохранена')"
+python -c "from sentence_transformers import SentenceTransformer; model = SentenceTransformer('all-MiniLM-L6-v2'); 
+model.save('models/all-MiniLM-L6-v2'); 
 
-### 3.2. Проверить
+### 3.2. Проверка наличия модели
 
 powershell
 dir models\all-MiniLM-L6-v2
@@ -81,11 +76,11 @@ dir models\all-MiniLM-L6-v2
 
 ## 4. Загрузка документов компании
 
-Скопируйте все документы компании в папку:
+Скопируйте все документы компании в соответствии с требуемым перечнем в папку:
 
 C:\Working\diplom_main_version\local-rag-mcp\src\docs\
 
-**Поддерживаемые форматы:** `.pdf`, `.docx`, `.doc`, `.xlsx`, `.xls`, `.json`, `.txt`, `.md`, `.csv`
+**Поддерживаемые форматы:** `.pdf`, `.docx`, `.xlsx`, `.xls`, `.json`, `.txt`, `.md`, `.csv`
 
 **Рекомендуемый перечень документов:**
 - Договор на проведение аудита ИБ
@@ -95,7 +90,7 @@ C:\Working\diplom_main_version\local-rag-mcp\src\docs\
 - Матрица доступа
 - Перечень программного обеспечения
 - Перечень оборудования
-- Регламенты защиты (антивирусной, парольной и др.)
+- Регламенты ИБ и др.
 
 ## 5. Запуск сканеров
 
@@ -121,7 +116,7 @@ python SCRIPT.py
 
 ### 5.2. CVE сканер (CVE-Search-MCP)
 
-CVE-Search-MCP — автономный инструмент для инвентаризации программного обеспечения и поиска уязвимостей **без передачи данных во внешние сети**. Поддерживает международную базу CVE (через AppThreat VDB) и российскую базу БДУ ФСТЭК (через bdu-fstec-mirror).
+CVE-Search-MCP — автономный инструмент для инвентаризации программного обеспечения и поиска уязвимостей без подключения к сети Интернет. Поддерживает международную базу CVE (через AppThreat VDB) и российскую базу БДУ ФСТЭК (через bdu-fstec-mirror).
 
 #### 5.2.1. Установка зависимостей CVE-сканера
 
@@ -138,7 +133,7 @@ powershell
 uv run python -c "from cve_db_manager import CVEDatabaseManager; CVEDatabaseManager().download_database()"
 
 
-**База БДУ ФСТЭК (основная):**
+**База БДУ ФСТЭК:**
 powershell
 uv run python -c "from cve_db_manager import BDUDatabaseManager; BDUDatabaseManager().download_database(force=True)"
 
@@ -147,10 +142,10 @@ uv run python -c "from cve_db_manager import BDUDatabaseManager; BDUDatabaseMana
 #### 5.2.3. Проверка поиска
 
 powershell
-# Поиск по CVE
+# Пример поиска по NVD
 uv run python -c "from cve_search_engine import search_cve_local; print(search_cve_local('log4j', 2))"
 
-# Поиск по БДУ ФСТЭК
+# Пример поиска по БДУ ФСТЭК
 uv run python -c "from bdu_search_engine import search_bdu_local; print(search_bdu_local('Apache', 2))"
 
 #### 5.2.4. Обновление баз данных
@@ -171,35 +166,33 @@ uv run python -c "from cve_db_manager import BDUDatabaseManager; BDUDatabaseMana
 json
 [
     {
-        "ip": "192.168.10.1",
+        "ip": "XXX.XXX.XXX.XXX",
         "os": "windows",
-        "username": "admin",
+        "username": "логин",
         "password": "пароль",
         "port": 5985
     },
     {
-        "ip": "192.168.10.20",
+        "ip": "XXX.XXX.XXX.XXX",
         "os": "linux",
-        "username": "root",
+        "username": "логин",
         "password": "пароль",
         "port": 22
     }
 ]
 
-> **Для Windows используется** PowerShell + удалённый WMI (реестр).  
-> **Для Linux** — SSH (paramiko).  
-> **Windows Server 2003 и старше** могут не поддерживаться. Для них можно подготовить JSON-файл со списком ПО и указать его через ключ `"software_file"` в `hosts.json`.
+**Windows Server 2003 и старше** могут не поддерживаться. Для них можно подготовить JSON-файл со списком ПО и указать его через ключ `"software_file"` в `hosts.json`.
 
 #### 5.2.6. Запуск CVE-сканера
 
 powershell
 cd C:\Working\diplom_main_version\CVE-Search-MCP
 
-# Проверить все программы (без ограничений)
+# Проверить все программы, установленные на хостах
 uv run python scan_hosts.py --max-per-host 0
 
-# Проверить первые 30 программ на каждом хосте
-uv run python scan_hosts.py --max-per-host 30
+# Проверить первые 3 программы на каждом хосте для проверки работоспособности
+uv run python scan_hosts.py --max-per-host 3
 
 Результаты сохраняются в `local-rag-mcp/src/docs/`:
 - `bdu_scan_report_<timestamp>.json` — отчёт по БДУ ФСТЭК
@@ -257,7 +250,8 @@ python threat_modeling.py
 
 ### 7.3. Следовать инструкциям в консоли
 
-Программа запросит подтверждение на генерацию отчета. Введите `y` и нажмите Enter.
+Программа запросит подтверждение на генерацию отчета.
+Убедитесь, что все в работе исправно и введите `y` и нажмите Enter для запуска.
 
 ### 7.4. Результаты
 
@@ -268,7 +262,7 @@ python threat_modeling.py
 - `metadata.json` (метаданные генерации)
 - `calculation_details.txt` (расчеты критичности уязвимостей)
 
-## 8. Автоматический запуск (run_all.py)
+## 8. Автоматический запуск всего программного продукта
 
 Для автоматического выполнения всего пайплайна:
 
@@ -286,7 +280,7 @@ python run_all.py
 6. Генерацию отчета
 7. Автоматическую остановку RAG сервера при завершении
 
-## 9. Настройка параметров системы
+## 9. Настройка параметров системы под собственные требования по мощности используемого оборудования
 
 ### Изменение модели LLM
 
