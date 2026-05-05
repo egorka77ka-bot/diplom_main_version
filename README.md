@@ -210,10 +210,10 @@ uv run python scan_hosts.py --max-per-host 30
 По умолчанию `scan_hosts.py` работает с **БДУ ФСТЭК**. Чтобы переключить на международную **CVE**, откройте `scan_hosts.py` и замените:
 
 python
-# Было:
+# Для БДУ:
 result = search_bdu_local(keyword, limit=3)
 
-# Стало:
+# Для NVD:
 result = search_cve_local(keyword, limit=3)
 
 ## 6. Запуск RAG-системы
